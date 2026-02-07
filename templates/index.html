@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P.D.K</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="bg-fixed-layer"></div>
+    <nav class="navbar">
+        <div class="menu-toggle" onclick="openNav()">&#9776;</div>
+        <a href="/" class="logo">P  D  K</a>
+        
+        <div class="cart-wrapper" onclick="toggleCart()">
+            <svg class="cart-icon-svg" viewBox="0 0 24 24">
+                <path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/>
+                <circle cx="9" cy="20" r="1.5" fill="#fff"/>
+                <circle cx="17" cy="20" r="1.5" fill="#fff"/>
+            </svg>
+            <span class="cart-badge">0</span>
+        </div>
+    </nav>
+
+    {% include 'includes/sidebar.html' %}
+
+    {% include 'includes/cart_drawer.html' %}
+
+    <div class="hero-container">
+        
+        <h1 class="hero-title">Pro<br>Deep<br>Keep</h1>
+        <p class="hero-subtitle">
+            來自「P.D.K」的概念<br>
+            代表一個人走向極致護理的旅程。<br>
+            專為亞洲氣候設計，喚醒秀髮的原始生命力。
+        </p>
+
+        <div class="button-group" >
+            <a href="/category/shampoo" class="btn-minimal">洗髮精</a>
+            <a href="/category/conditioner" class="btn-minimal">潤髮乳</a>
+            <a href="/category/haircare" class="btn-minimal">保養品</a>
+            <a href="/category/otherproduct" class="btn-minimal">其他產品</a>
+        </div>
+
+    </div>
+
+</body>
+</html>

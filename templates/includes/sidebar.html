@@ -1,0 +1,75 @@
+<div id="menuOverlay" class="menu-overlay" onclick="closeNav()"></div>
+
+<div id="mySidenav" class="side-menu">
+    
+    <div style="text-align: center; margin-bottom: 40px; ">
+        <h2 style="color: #fff; font-size: 2rem; margin: 0;">P . D . K</h2>
+    </div>
+
+    <button class="dropdown-btn">商品列表 Products 
+        <span class="arrow">▼</span>
+    </button>
+    <div class="dropdown-container">
+        <a href="/category/shampoo">洗髮精 Shampoo</a>
+        <a href="/category/conditioner">潤髮乳 Conditioner</a>
+        <a href="/category/haircare">保養品 Care</a>
+        <a href="/category/otherproduct">其他產品 Others</a>
+    </div>
+
+    <a href="#">最新活動 Active</a>
+    <a href="#">常見問題 FAQ</a>
+    <a href="#">聯絡我們 Contact</a>
+
+    <div class="menu-section">
+        <div class="menu-section-title">帳戶 Account</div>
+        <a href="#">會員登入 Login</a>
+        <a href="#">會員註冊 Register</a>
+        <a href="#">訂單查詢 Order</a>
+    </div>
+</div>
+
+<script>
+    var dropdown = document.getElementsByClassName("dropdown-btn");
+    var i;
+
+    for (i = 0; i < dropdown.length; i++) {
+        dropdown[i].addEventListener("click", function() {
+            this.classList.toggle("active");
+            var arrow = this.querySelector(".arrow");
+            if (this.classList.contains("active")) {
+                arrow.style.transform = "rotate(180deg)";
+            } else {
+                arrow.style.transform = "rotate(0deg)";
+            }
+            var dropdownContent = this.nextElementSibling;
+            if (dropdownContent.style.display === "block") {
+                dropdownContent.style.display = "none";
+            } else {
+                dropdownContent.style.display = "block";
+            }
+        });
+    }
+
+    // ★★★ 修改這裡：打開選單時，顯示遮罩 ★★★
+    function openNav() {
+    // 1. 打開選單
+    document.getElementById("mySidenav").style.width = "280px"; 
+    
+    // 2. 顯示遮罩
+    var overlay = document.getElementById("menuOverlay");
+    overlay.classList.add("show");
+    
+    // 3. ★ 核心修正：確保點擊遮罩時會觸發 closeNav
+    overlay.onclick = function() {
+        closeNav();
+    };
+}
+
+function closeNav() {
+    // 1. 關閉選單
+    document.getElementById("mySidenav").style.width = "0";
+    
+    // 2. 隱藏遮罩
+    document.getElementById("menuOverlay").classList.remove("show");
+}
+</script>

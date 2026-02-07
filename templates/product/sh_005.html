@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <title>極致燙染修復洗髮精| P.D.K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+</head>
+<body class="product-page">
+
+    <nav class="navbar">
+        <div class="menu-toggle" onclick="openNav()">&#9776;</div>
+        <a href="/" class="logo">P  D  K</a>
+        <div class="cart-wrapper" onclick="toggleCart()">
+            <svg class="cart-icon-svg" viewBox="0 0 24 24">
+                <path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/>
+                <circle cx="9" cy="20" r="1.5" fill="#fff"/>
+                <circle cx="17" cy="20" r="1.5" fill="#fff"/>
+            </svg>
+            <span class="cart-badge" id="navCartBadge">0</span>
+        </div>
+    </nav>
+
+    {% include 'includes/sidebar.html' %}
+    
+    {% include 'includes/cart_drawer.html' %}
+
+    <div class="pdp-wrapper">
+        <div class="swiper mySwiper">
+            <div class="swiper-wrapper">
+                <div class="swiper-slide">
+                    <div class="slide-content" style="background:#000; color:#fff;">照片 1 (黑)</div>
+                </div>
+                <div class="swiper-slide">
+                    <div class="slide-content" style="background:#fff; color:#000;">照片 2 (白)</div>
+                </div>
+            </div>
+            <div class="swiper-pagination"></div>
+        </div>
+
+        <div class="pdp-info-box">
+            <h1 class="pdp-name">極致燙染修復洗髮精</h1>
+            <div class="pdp-price">NT$ 850</div>
+            
+            <div class="qty-selector-group">
+                <span class="qty-label">數量 Quantity</span>
+                <div class="qty-stepper">
+                    <button class="qty-btn" onclick="updateQty(-1)">-</button>
+                    <div id="displayQty" class="qty-num">1</div>
+                    <button class="qty-btn" onclick="updateQty(1)">+</button>
+                </div>
+            </div>
+
+            <div class="pdp-desc">
+                <p>深層淨化，頭皮呼吸。<br>強健髮根，不易斷裂。</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="fixed-bottom-bar">
+        <button class="action-btn btn-back" onclick="history.back()">←</button>
+        <button class="action-btn btn-add" onclick="addToCart()">加入購物車</button>
+        <button class="action-btn btn-checkout" onclick="goToCheckout()">立即結帳</button>
+    </div>
+    <div style="height: 80px;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <script>
+        // 設定本頁商品資訊
+        const productInfo = {
+            id: 'sh_005',
+            name: '極致燙染修復洗髮精',
+            price: 850,
+            img: '/static/product/1.jpg' // 確保這個路徑有對應的圖片
+        };
+        let buyQty = 1;
+
+        // 初始化 Swiper
+        var swiper = new Swiper(".mySwiper", {
+            loop: true,
+            pagination: { el: ".swiper-pagination", clickable: true },
+            speed: 400,
+            grabCursor: true
+        });
+
+        // 頁面數量加減
+        function updateQty(n) {
+            buyQty += n;
+            if(buyQty < 1) buyQty = 1;
+            document.getElementById('displayQty').innerText = buyQty;
+        }
+
+        // ★★★ 加入購物車 (核心) ★★★
+        function addToCart() {
+            // 1. 讀取
+            let cart = JSON.parse(localStorage.getItem('pdk_cart')) || [];
+            
+            // 2. 更新
+            let existing = cart.find(item => item.id === productInfo.id);
+            if(existing) {
+                existing.qty += buyQty;
+            } else {
+                cart.push({
+                    id: productInfo.id,
+                    name: productInfo.name,
+                    price: productInfo.price,
+                    img: productInfo.img,
+                    qty: buyQty
+                });
+            }
+
+            // 3. 存檔
+            localStorage.setItem('pdk_cart', JSON.stringify(cart));
+
+            // 4. ★★★ 呼叫 cart_drawer.html 裡寫好的全域更新函式 ★★★
+            if (typeof window.externalCartUpdate === 'function') {
+                window.externalCartUpdate();
+            }
+
+            // 5. 震動動畫
+            let icon = document.querySelector('.cart-wrapper');
+            if(icon) {
+                icon.style.transform = 'scale(1.2)';
+                setTimeout(()=> icon.style.transform='scale(1)', 200);
+            }
+        }
+
+        function goToCheckout() {
+            addToCart();
+            toggleCart(); // 打開抽屜
+        }
+    </script>
+</body>
+</html>

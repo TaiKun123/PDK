@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHAMPOO | P.D.K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="menu-toggle" onclick="openNav()">&#9776;</div>
+        <a href="/" class="logo">P  D  K</a>
+        
+        <div class="cart-wrapper" onclick="toggleCart()">
+            <svg class="cart-icon-svg" viewBox="0 0 24 24">
+                <path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/>
+                <circle cx="9" cy="20" r="1.5" fill="#fff"/>
+                <circle cx="17" cy="20" r="1.5" fill="#fff"/>
+            </svg>
+            <span class="cart-badge">0</span>
+        </div>
+    </nav>
+
+    {% include 'includes/sidebar.html' %}
+
+    {% include 'includes/cart_drawer.html' %}
+
+    <div class="category-wrapper">
+        <div class="product-grid">
+            {% if products %}
+                {% for p in products %}
+                
+                <div class="glass-card">
+                    
+                    <a href="/product/{{ p.id }}" style="display:block; text-decoration:none; flex-grow: 1;">
+                        <div class="card-img product-bg-{{ p.id }}"></div>
+                        <div class="card-info">
+                            <h3>{{ p.name }}</h3>
+                            <div class="price">NT$ {{ p.price }}</div>
+                        </div>
+                    </a>
+
+                    <div class="card-action-btn" onclick="openQuickView('{{ p.id }}', '{{ p.name }}', {{ p.price }}, '{{ p.description }}')">
+                        <svg class="action-icon" viewBox="0 0 24 24">
+                            <path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/>
+                            <circle cx="9" cy="20" r="1.5" fill="currentColor"/>
+                            <circle cx="17" cy="20" r="1.5" fill="currentColor"/>
+                        </svg>
+                    </div>
+
+                </div>
+
+                {% endfor %}
+            {% else %}
+                <p style="text-align:center; color:#888; width:100%;">尚無商品資料</p>
+            {% endif %}
+        </div>
+    </div>
+
+</body>
+</html>
