@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SHAMPOO | P.D.K</title>
+    <title>{{ page_info.title_en }} | P.D.K</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-
+    <div class="bg-fixed-layer"></div>
     <nav class="navbar">
         <div class="menu-toggle" onclick="openNav()">&#9776;</div>
         <a href="/" class="logo">P  D  K</a>
@@ -28,6 +28,13 @@
     {% include 'includes/cart_drawer.html' %}
 
     <div class="category-wrapper">
+
+        <div style="margin-bottom: 25px; text-align: center;">
+            <h1 class="category-slogan" style="opacity: 1; animation: none; font-size: 2.2rem; letter-spacing: 5px; margin: 0; color: #c2c2c2;">
+                -{{ page_info.title_en }}-
+            </h1>
+        </div>
+
         <div class="product-grid">
             {% if products %}
                 {% for p in products %}

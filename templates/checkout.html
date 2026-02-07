@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Check | P.D.K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <div class="bg-fixed-layer"></div>
+
+    <nav class="navbar">
+        <a href="/" class="nav-icon-link">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+        </a>
+        <a href="/" class="logo">P  D  K</a>
+    </nav>
+
+    <div class="checkout-container">
+        
+        <div class="step-wizard">
+            <div class="step-item active"><span>01</span> 確認商品</div>
+            <div class="step-divider"></div>
+            <div class="step-item active"><span>02</span> 填寫資料</div>
+            <div class="step-divider"></div>
+            <div class="step-item active"><span>03</span> 訂單成立</div>
+        </div>
+
+        <form action="/submit_order" method="POST" class="checkout-layout" id="checkoutForm">
+            
+            <div class="form-container">
+                
+                <div class="form-section">
+                    <h3 class="form-title">顧客資料</h3>
+                    <div class="form-group">
+                        <label class="form-label">電子信箱 Email</label>
+                        <input type="email" name="email" class="form-input" placeholder="請輸入 Email 以接收訂單通知" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">收件人姓名</label>
+                        <input type="text" name="name" class="form-input" placeholder="請輸入真實姓名" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">手機號碼</label>
+                        <input type="tel" name="phone" class="form-input" placeholder="09xxxxxxxx" required>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3 class="form-title">送貨地點</h3>
+                    
+                    <div class="form-group">
+                        <label class="form-label">送貨方式</label>
+                        <select name="shipping_method" id="shippingSelect" class="form-input" onchange="updateShipping()">
+                            <option value="home" data-price="100">黑貓宅配 (運費 NT$100)</option>
+                            <option value="store" data-price="40">7-11 超商取貨 (運費 NT$40)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label class="form-label">縣市</label>
+                            <select name="city" id="citySelect" class="form-input" required>
+                                <option value="" disabled selected>請選擇縣市</option>
+                            </select>
+                        </div>
+                        <div class="form-col">
+                            <label class="form-label">區域</label>
+                            <select name="district" id="districtSelect" class="form-input" required>
+                                <option value="" disabled selected>請先選擇縣市</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top:20px;">
+                        <label class="form-label">詳細地址</label>
+                        <input type="text" name="address" class="form-input" placeholder="街道、巷弄、門號、樓層" required>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3 class="form-title">付款方式</h3>
+                    <div class="form-group">
+                        <select name="payment_method" class="form-input">
+                            <option value="card">信用卡 (VISA / Master / JCB)</option>
+                            <option value="atm">ATM 虛擬代碼轉帳</option>
+                            <option value="cod">貨到付款</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">優惠代碼 (測試碼: VIP50)</label>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" id="promoInput" class="form-input" placeholder="輸入優惠碼" style="text-transform:uppercase;">
+                            <button type="button" onclick="applyPromo()" class="btn-minimal" style="padding:0 25px; height:48px; white-space:nowrap;">套用</button>
+                        </div>
+                        <div id="promoMsg" style="font-size:0.85rem; margin-top:5px; height:20px;"></div>
+                    </div>
+
+                    <div class="final-summary-box">
+                        <div class="summary-row">
+                            <span>購物車總額</span>
+                            <span>NT$ <span id="summarySubtotal">0</span></span>
+                        </div>
+                        <div class="summary-row">
+                            <span>運費</span>
+                            <span>NT$ <span id="summaryShipping">100</span></span>
+                        </div>
+                        <div class="summary-row" id="discountRow" style="display:none; color:#4caf50;">
+                            <span>優惠折扣</span>
+                            <span>- NT$ <span id="summaryDiscount">0</span></span>
+                        </div>
+                        
+                        <div class="summary-row total">
+                            <span>合計</span>
+                            <span style="font-family:'Times New Roman';">NT$ <span id="summaryTotal">0</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="checkout-actions">
+                    <button type="button" class="btn-back-checkout" onclick="window.location.href='/'">
+                        < 返回
+                    </button>
+                    <button type="submit" class="btn-place-order">
+                        立即下單
+                    </button>
+                </div>
+
+            </div>
+            <div class="order-confirmation-box">
+                <div class="confirmation-header" onclick="toggleConfirmation()">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:1.1rem; font-weight:bold; letter-spacing:1px;">訂單確認</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div style="font-family:'Times New Roman'; font-size:1.1rem; color:#aaa;">NT$ <span id="headerSubtotal">0</span></div>
+                </div>
+
+                <div class="confirmation-content" id="confirmationContent">
+                    
+                    <div id="checkoutItemsList"></div>
+
+                    <div style="display:flex; justify-content:space-between; padding-top:15px; border-top:1px solid rgba(255,255,255,0.1); margin-top:10px; color:#ddd;">
+                        <span>商品小計</span>
+                        <span style="font-family:'Times New Roman';">NT$ <span id="rightSubtotal">0</span></span>
+                    </div>
+
+                    <div id="promoTask" class="promo-task-bar task-fail">
+                        <span class="task-icon">✕</span>
+                        <span id="promoText">消費滿 $1,000 送旅行分裝小瓶</span>
+                    </div>
+                </div>
+            </div>
+            </form>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/checkout.js') }}"></script>
+
+</body>
+</html>

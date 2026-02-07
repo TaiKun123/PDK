@@ -7,7 +7,6 @@ app = Flask(__name__)
 # ============================================
 # 1. 資料庫配置 (Configuration)
 # ============================================
-# ★★★ 修改 1：改用新檔名 pdk_new.db，避開舊檔案刪不掉的問題
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///pdk.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -76,8 +75,34 @@ def shampoo_page():
 # --- 通用分類頁面 ---
 @app.route('/category/<string:cat_name>')
 def category_page(cat_name):
+    # 1. 定義每個分類對應的標題資料
+    category_data = {
+        'shampoo': {
+            'title_zh': '洗髮精', 
+            'title_en': 'SHAMPOO', 
+        },
+        'conditioner': {
+            'title_zh': '潤髮乳', 
+            'title_en': 'CONDITIONER', 
+        },
+        'haircare': {
+            'title_zh': '頭髮護理', 
+            'title_en': 'HAIR CARE', 
+        },
+        'otherproduct': {
+            'title_zh': '其他產品', 
+            'title_en': 'OTHERS', 
+        }
+    }
+
+    page_info = category_data.get(cat_name, {
+        'title_zh': '精選商品', 
+        'title_en': 'PRODUCTS', 
+    })
+
     products = Product.query.filter_by(category=cat_name).all()
-    return render_template('shampoo.html', products=products) 
+    
+    return render_template('shampoo.html', products=products, page_info=page_info)
 
 # --- 商品詳情頁 (單一商品) ---
 # ★★★ 修改 3：網址參數必須改為 string，才能接收 "sh_001"
@@ -86,6 +111,12 @@ def product_page(product_id):
     # 這裡的邏輯是：直接去 templates/product/ 資料夾找對應的 HTML 檔
     # 例如 product_id 是 sh_001，就會去找 templates/product/sh_001.html
     return render_template(f'product/{product_id}.html')
+
+# --- 結帳畫面 ---
+
+@app.route('/checkout')
+def checkout_page():
+    return render_template('checkout.html')
 
 # ============================================
 # 5. 啟動程式 (Main)
