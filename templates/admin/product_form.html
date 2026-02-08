@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>{% if product %}編輯商品{% else %}新增商品{% endif %} | P.D.K Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+
+    <nav class="admin-navbar">
+        <div class="layout-container navbar-content">
+            <div class="navbar-brand"><i class="fas fa-box-open"></i> P.D.K Admin</div>
+            <div class="navbar-actions">
+                <a href="/admin/products" class="nav-link"><i class="fas fa-arrow-left"></i> 回商品列表</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="layout-container form-page-container">
+        
+        <div class="card form-card">
+            <div class="card-header">
+                <h2>{% if product %}編輯商品：{{ product.name }}{% else %}新增商品{% endif %}</h2>
+            </div>
+            
+            <div class="form-body">
+                {% if error %}
+                <div class="alert-error">{{ error }}</div>
+                {% endif %}
+
+                <form method="POST" enctype="multipart/form-data">
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>商品編號 (ID)</label>
+                            <input type="text" name="id" class="form-input" 
+                                   value="{{ product.id if product else '' }}" 
+                                   {% if product %}readonly{% endif %} 
+                                   required placeholder="例如：sh_006">
+                            {% if product %}<small>編號不可修改</small>{% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label>分類 (Category)</label>
+                            <select name="category" class="form-select">
+                                <option value="shampoo" {% if product and product.category=='shampoo' %}selected{% endif %}>洗髮精 (shampoo)</option>
+                                <option value="conditioner" {% if product and product.category=='conditioner' %}selected{% endif %}>潤髮乳 (conditioner)</option>
+                                <option value="haircare" {% if product and product.category=='haircare' %}selected{% endif %}>護髮 (haircare)</option>
+                                <option value="otherproduct" {% if product and product.category=='otherproduct' %}selected{% endif %}>其他 (otherproduct)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>商品名稱</label>
+                        <input type="text" name="name" class="form-input" value="{{ product.name if product else '' }}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>價格 (NT$)</label>
+                        <input type="number" name="price" class="form-input" value="{{ product.price if product else '' }}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>商品描述</label>
+                        <textarea name="description" rows="5" placeholder="1. 功能一 ...">{{ product.description if product else '' }}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>商品圖片</label>
+                        <input type="file" name="image" class="form-input" accept="image/*">
+                        
+                        {% if product and product.image %}
+                        <div class="preview-box" style="display: flex; align-items: flex-start; gap: 15px; margin-top: 10px;">
+                            <div>
+                                <p class="preview-text">目前圖片：</p>
+                                <img src="{{ url_for('static', filename=product.image) }}" class="preview-img">
+                            </div>
+                            
+                            <div style="padding-top: 30px;">
+                                <label style="cursor: pointer; color: #ff6b6b; display: flex; align-items: center; gap: 5px; font-size: 0.95rem;">
+                                    <input type="checkbox" name="delete_image" value="yes" style="width: auto; margin: 0;"> 
+                                    <i class="fas fa-trash-alt"></i> 刪除此圖片
+                                </label>
+                            </div>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="action-btn btn-complete">儲存商品</button>
+                        <a href="/admin/products" class="action-btn btn-delete btn-cancel">取消</a>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

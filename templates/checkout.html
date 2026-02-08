@@ -30,23 +30,30 @@
             <div class="step-item active"><span>03</span> 訂單成立</div>
         </div>
 
-        <form action="/submit_order" method="POST" class="checkout-layout" id="checkoutForm">
+        <form id="checkoutForm" class="checkout-layout">
             
             <div class="form-container">
                 
                 <div class="form-section">
                     <h3 class="form-title">顧客資料</h3>
+                    
                     <div class="form-group">
                         <label class="form-label">電子信箱 Email</label>
-                        <input type="email" name="email" class="form-input" placeholder="請輸入 Email 以接收訂單通知" required>
+                        <input type="email" id="inputEmail" name="email" class="form-input" placeholder="請輸入 Email 以接收訂單通知">
+                        <div class="error-msg">Email 格式不正確</div>
+                        <div id="emailSuggestion" class="suggestion-msg"></div>
                     </div>
+
                     <div class="form-group">
                         <label class="form-label">收件人姓名</label>
-                        <input type="text" name="name" class="form-input" placeholder="請輸入真實姓名" required>
+                        <input type="text" id="inputName" name="name" class="form-input" placeholder="請輸入真實姓名">
+                        <div class="error-msg">請填寫有效姓名 (勿使用特殊符號)</div>
                     </div>
+
                     <div class="form-group">
                         <label class="form-label">手機號碼</label>
-                        <input type="tel" name="phone" class="form-input" placeholder="09xxxxxxxx" required>
+                        <input type="tel" id="inputPhone" name="phone" class="form-input" placeholder="09xxxxxxxx" maxlength="15">
+                        <div class="error-msg">請輸入正確的台灣手機號碼 (10碼)</div>
                     </div>
                 </div>
 
@@ -55,39 +62,54 @@
                     
                     <div class="form-group">
                         <label class="form-label">送貨方式</label>
-                        <select name="shipping_method" id="shippingSelect" class="form-input" onchange="updateShipping()">
-                            <option value="home" data-price="100">黑貓宅配 (運費 NT$100)</option>
+                        <select name="shipping_method" id="shippingSelect" class="form-input">
+                            <option value="home" data-price="100" selected>黑貓宅配 (運費 NT$100)</option>
                             <option value="store" data-price="40">7-11 超商取貨 (運費 NT$40)</option>
                         </select>
                     </div>
                     
-                    <div class="form-row">
-                        <div class="form-col">
-                            <label class="form-label">縣市</label>
-                            <select name="city" id="citySelect" class="form-input" required>
-                                <option value="" disabled selected>請選擇縣市</option>
-                            </select>
+                    <div id="homeDeliveryGroup">
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label class="form-label">縣市</label>
+                                <select name="city" id="citySelect" class="form-input">
+                                    <option value="" disabled selected>請選擇縣市</option>
+                                </select>
+                            </div>
+                            <div class="form-col">
+                                <label class="form-label">區域</label>
+                                <select name="district" id="districtSelect" class="form-input">
+                                    <option value="" disabled selected>請先選擇縣市</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="form-col">
-                            <label class="form-label">區域</label>
-                            <select name="district" id="districtSelect" class="form-input" required>
-                                <option value="" disabled selected>請先選擇縣市</option>
-                            </select>
+                        <div class="form-group" style="margin-top:20px;">
+                            <label class="form-label">詳細地址</label>
+                            <input type="text" name="address" id="addressInput" class="form-input" placeholder="街道、巷弄、門號、樓層">
+                            <div class="error-msg">地址太短了，請填寫完整資訊</div>
                         </div>
                     </div>
-                    <div class="form-group" style="margin-top:20px;">
-                        <label class="form-label">詳細地址</label>
-                        <input type="text" name="address" class="form-input" placeholder="街道、巷弄、門號、樓層" required>
+
+                    <div id="storePickupGroup" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">取貨門市名稱 / 店號</label>
+                            <input type="text" name="store_name" id="storeNameInput" class="form-input" placeholder="例如：711 台北旗艦店 (123456)">
+                            <div class="error-msg">請填寫取貨門市</div>
+                            <div style="font-size:0.8rem; color:#888; margin-top:5px;">
+                                * 請填寫您方便取貨的 711 門市名稱或店號
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="form-section">
-                    <h3 class="form-title">付款方式</h3>
+                    <h3 class="form-title">付款方式(人工對帳)</h3>
                     <div class="form-group">
+                        <label class="form-label">付款方式</label>
                         <select name="payment_method" class="form-input">
-                            <option value="card">信用卡 (VISA / Master / JCB)</option>
-                            <option value="atm">ATM 虛擬代碼轉帳</option>
-                            <option value="cod">貨到付款</option>
+                            <option value="linepay">LINE Pay</option>
+                            <option value="atm">銀行轉帳 / 網銀</option>
+                            <option value="jiekou">街口支付</option>
                         </select>
                     </div>
                     
@@ -95,7 +117,7 @@
                         <label class="form-label">優惠代碼 (測試碼: VIP50)</label>
                         <div style="display:flex; gap:10px;">
                             <input type="text" id="promoInput" class="form-input" placeholder="輸入優惠碼" style="text-transform:uppercase;">
-                            <button type="button" onclick="applyPromo()" class="btn-minimal" style="padding:0 25px; height:48px; white-space:nowrap;">套用</button>
+                            <button type="button" id="btnApplyPromo" class="btn-minimal" style="padding:0 25px; height:48px; white-space:nowrap;">套用</button>
                         </div>
                         <div id="promoMsg" style="font-size:0.85rem; margin-top:5px; height:20px;"></div>
                     </div>
@@ -125,14 +147,14 @@
                     <button type="button" class="btn-back-checkout" onclick="window.location.href='/'">
                         < 返回
                     </button>
-                    <button type="submit" class="btn-place-order">
+                    <button type="button" class="btn-place-order" id="btnSubmitOrder">
                         立即下單
                     </button>
                 </div>
-
             </div>
+
             <div class="order-confirmation-box">
-                <div class="confirmation-header" onclick="toggleConfirmation()">
+                <div class="confirmation-header" id="confirmationHeader">
                     <div style="display:flex; align-items:center; gap:10px;">
                         <span style="font-size:1.1rem; font-weight:bold; letter-spacing:1px;">訂單確認</span>
                         <span class="toggle-icon">▼</span>
@@ -141,7 +163,6 @@
                 </div>
 
                 <div class="confirmation-content" id="confirmationContent">
-                    
                     <div id="checkoutItemsList"></div>
 
                     <div style="display:flex; justify-content:space-between; padding-top:15px; border-top:1px solid rgba(255,255,255,0.1); margin-top:10px; color:#ddd;">
@@ -155,7 +176,10 @@
                     </div>
                 </div>
             </div>
-            </form>
+
+            <input type="hidden" name="cart_data" id="hiddenCartInput">
+            <input type="hidden" name="discount" id="hiddenDiscountInput" value="0">
+        </form>
     </div>
 
     <script src="{{ url_for('static', filename='js/checkout.js') }}"></script>

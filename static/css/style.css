@@ -694,6 +694,28 @@ select.form-input {
     color: #fff; font-size: 1.3rem; font-weight: bold;
 }
 
+select.form-input option {
+    background-color: #1a1a1a; /* 深灰/黑色背景 */
+    color: #fff;               /* 白色文字 */
+}
+
+/* 修正瀏覽器自動填入 (Autofill) 黃色背景問題*/
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    /* 1. 強制將填入的文字顏色改成白色 */
+    -webkit-text-fill-color: #fff !important;
+    
+    /* 2. 利用超長的過渡時間，讓背景色「來不及」變成黃色，
+          這樣就會維持你原本設定的透明或深色背景 */
+    transition: background-color 9999s ease-in-out 0s;
+    
+    /* 3. 設定游標顏色為白色 (避免游標在黑色背景看不太到) */
+    caret-color: #fff;
+}
+
+
 /* --- 電腦版佈局調整 (Desktop) --- */
 @media (min-width: 992px) {
     .checkout-layout {
@@ -708,6 +730,241 @@ select.form-input {
     .confirmation-header { cursor: default; border-bottom: none; margin-bottom: 20px; }
     .toggle-icon { display: none; }
 }
+
+/* =========================================
+   16. 訂單完成頁 (Order Success)
+   ========================================= */
+
+.success-container {
+    max-width: 600px;
+    margin: 120px auto 50px auto;
+    padding: 40px 20px;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    animation: fadeIn Up 0.8s ease-out;
+}
+
+/* --- 打勾動畫 (純 CSS) --- */
+.success-icon-box {
+    width: 80px; height: 80px; margin: 0 auto 30px auto;
+}
+.checkmark {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    display: block;
+    stroke-width: 2;
+    stroke: #4caf50; /* 綠色勾勾 */
+    stroke-miterlimit: 10;
+    box-shadow: inset 0px 0px 0px #4caf50;
+    animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+}
+.checkmark__circle {
+    stroke-dasharray: 166;
+    stroke-dashoffset: 166;
+    stroke-width: 2;
+    stroke-miterlimit: 10;
+    stroke: #4caf50;
+    fill: none;
+    animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+.checkmark__check {
+    transform-origin: 50% 50%;
+    stroke-dasharray: 48;
+    stroke-dashoffset: 48;
+    animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+}
+
+@keyframes stroke { 100% { stroke-dashoffset: 0; } }
+@keyframes scale { 0%, 100% { transform: none; } 50% { transform: scale3d(1.1, 1.1, 1); } }
+@keyframes fill { 100% { box-shadow: inset 0px 0px 0px 30px rgba(76, 175, 80, 0.1); } }
+
+/* --- 文字樣式 --- */
+.success-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    color: #fff;
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+}
+.success-subtitle {
+    color: #aaa;
+    font-size: 1rem;
+    margin-bottom: 40px;
+}
+
+/* --- 訂單資訊卡片 --- */
+.order-details-box {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 30px;
+    text-align: left;
+    margin-bottom: 40px;
+}
+.order-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    font-size: 1rem;
+    color: #ccc;
+}
+.order-id-text {
+    font-family: 'Times New Roman', serif;
+    color: #fff;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+.divider {
+    height: 1px;
+    background: rgba(255,255,255,0.1);
+    margin: 20px 0;
+}
+
+/* --- 按鈕 --- */
+.btn-back-home {
+    display: inline-block;
+    padding: 12px 40px;
+    background: #fff;
+    color: #000;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: 0.3s;
+}
+.btn-back-home:hover {
+    background: #e0e0e0;
+    transform: translateY(-2px);
+}
+
+/* static/css/order-success.css */
+
+/* 訂單完成頁專用樣式 */
+.success-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+}
+
+.success-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 40px 30px;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.success-icon {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    border: 2px solid #4caf50;
+    color: #4caf50;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px;
+    margin: 0 auto 20px auto;
+}
+
+.order-info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 15px;
+    color: #ddd;
+}
+
+/* ★ 重點：付款說明區塊 (紅色框框部分) */
+.payment-instruction-box {
+    background: rgba(255, 255, 255, 0.08);
+    border-left: 4px solid #3f3f3f; /* 金色邊框強調 */
+    padding: 20px;
+    margin-top: 25px;
+    text-align: left;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #eee;
+}
+
+.instruction-title {
+    color: #dfdfdf;
+    font-weight: bold;
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+}
+
+.bank-code {
+    font-family: monospace;
+    background: rgba(0,0,0,0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #fff;
+}
+
+.btn-home {
+    margin-top: 30px;
+    padding: 12px 40px;
+    background: #fff;
+    color: #000;
+    text-decoration: none;
+    font-weight: bold;
+    border-radius: 4px;
+    display: inline-block;
+    transition: 0.3s;
+}
+
+.btn-home:hover { 
+    background: #ddd; 
+}
+
+/* 表單驗證樣式 */
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #333; /* 或您的網站文字顏色 */
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+/* 驗證錯誤時的樣式 */
+input.error {
+    border-color: #e74c3c;
+    background-color: #fce4e4;
+}
+
+/* 錯誤訊息文字 */
+.error-msg {
+    color: #e74c3c;
+    font-size: 0.85rem;
+    margin-top: 5px;
+    display: none; /* 預設隱藏 */
+}
+
+/* 顯示錯誤訊息 */
+.error-msg.show {
+    display: block;
+}
+
 
 .product-bg-1 {
     /* background-image: url('../images/product-01.jpg'); */

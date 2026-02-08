@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>訂單詳情 | P.D.K Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+
+    <nav class="admin-navbar">
+        <div class="layout-container navbar-content">
+            <div class="navbar-brand"><i class="fas fa-box-open"></i> P.D.K Admin</div>
+            <div class="navbar-actions" style="margin-left: auto;">
+                <a href="/admin/orders" class="nav-link"><i class="fas fa-arrow-left"></i> 回訂單列表</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="layout-container detail-page-wrapper">
+        
+        <div class="detail-header-card">
+            <div class="header-left-group">
+                <div class="order-title-block">
+                    <h1>{{ order.order_no }}</h1>
+                    <span class="status-badge status-{{ order.status }}" style="margin-left: 15px; transform: translateY(-3px);">
+                        {% if order.status == 'pending' %} 待處理
+                        {% elif order.status == 'paid' %} 已付款
+                        {% elif order.status == 'shipped' %} 已出貨
+                        {% elif order.status == 'done' %} 已完成
+                        {% elif order.status == 'cancelled' %} 已取消
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="order-meta">
+                    <i class="far fa-clock"></i> 下單時間：{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}
+                </div>
+            </div>
+
+            <div class="header-right-actions">
+                <form action="/admin/order/update_status" method="POST" class="status-form">
+                    <input type="hidden" name="order_id" value="{{ order.id }}">
+                    <select name="status" onchange="this.form.submit()" class="status-select {{ order.status }}">
+                        <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>待處理</option>
+                        <option value="paid" {% if order.status == 'paid' %}selected{% endif %}>已付款</option>
+                        <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>已出貨</option>
+                        <option value="done" {% if order.status == 'done' %}selected{% endif %}>已完成</option>
+                        <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                    </select>
+                </form>
+
+                <form action="/admin/order/delete" method="POST" style="display:inline;">
+                    <input type="hidden" name="order_id" value="{{ order.id }}">
+                    <button type="submit" class="btn-icon btn-delete" onclick="return confirm('確定要刪除嗎？');" title="刪除">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </form>
+                <button onclick="window.print()" class="btn-icon btn-print" title="列印"><i class="fas fa-print"></i></button>
+            </div>
+        </div>
+
+
+        <div class="detail-content-grid">
+            
+            <div class="detail-left">
+                <div class="card product-list-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-shopping-bag"></i> 商品明細 <span class="badge-pill">{{ items|length }}</span></h3>
+                    </div>
+
+                    <div class="item-list-container">
+                        {% set summary = namespace(subtotal=0) %}
+                        {% for item in items %}
+                        <div class="product-item-grid">
+                            <div class="prod-img"><i class="fas fa-image"></i></div>
+                            <div class="prod-info">
+                                <div class="prod-name">{{ item.name }}</div>
+                                <div class="prod-unit-price">單價 ${{ item.price }}</div>
+                            </div>
+                            <div class="prod-qty"><span>x{{ item.qty }}</span></div>
+                            {% set item_total = item.price|int * item.qty|int %}
+                            <div class="prod-total">NT$ {{ item_total }}</div>
+                            {% set summary.subtotal = summary.subtotal + item_total %}
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="summary-footer">
+                        <div class="sum-row">
+                            <span>商品小計</span>
+                            <span>NT$ {{ summary.subtotal }}</span>
+                        </div>
+                        <div class="sum-row">
+                            {% set shipping_fee = 100 if order.shipping_method == 'home' else 40 %}
+                            <span>運費 ({{ '宅配' if order.shipping_method == 'home' else '超商' }})</span>
+                            <span>+ NT$ {{ shipping_fee }}</span>
+                        </div>
+                        
+                        {% set discount_amt = (summary.subtotal + shipping_fee) - order.total_amount %}
+                        {% if discount_amt > 0 %}
+                        <div class="sum-row discount">
+                            <span>優惠券折扣</span>
+                            <span>- NT$ {{ discount_amt }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="sum-divider"></div>
+
+                        <div class="sum-row total">
+                            <span>實付總額</span>
+                            <span class="highlight-gold">NT$ {{ order.total_amount }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-right">
+                <div class="card customer-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-user"></i> 顧客資訊</h3>
+                    </div>
+                    
+                    <div class="info-block">
+                        <label>顧客姓名</label>
+                        <div>{{ order.customer_name }}</div>
+                    </div>
+
+                    <div class="info-block">
+                        <label>聯絡電話</label>
+                        <div class="font-mono">{{ order.customer_phone }}</div>
+                    </div>
+
+                    <div class="info-block">
+                        <label>Email</label>
+                        <div class="font-mono text-sm">{{ order.customer_email }}</div>
+                    </div>
+
+                    <div class="dashed-line"></div>
+
+                    <div class="info-block">
+                        <label>付款方式</label>
+                        <div class="text-gold bold">{{ order.payment_method }}</div>
+                    </div>
+
+                    <div class="info-block">
+                        <label>配送方式</label>
+                        <div>{{ '宅配' if order.shipping_method == 'home' else '超商取貨' }}</div>
+                    </div>
+
+                    <div class="info-block">
+                        <label>地址</label>
+                        <div class="address-box">{{ order.address }}</div>
+                    </div>
+                </div>
+            </div>
+
+        </div> </div> </body>
+</html>

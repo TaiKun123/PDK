@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>訂單成立 | P.D.K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <div class="bg-fixed-layer"></div>
+
+    <div class="success-container">
+        
+        <div class="success-icon">✓</div>
+        
+        <h1 style="font-family: 'Playfair Display', serif; font-size: 2.5rem; margin-bottom: 10px;">Thank You</h1>
+        <p style="color:#aaa; margin-bottom: 30px;">您的訂單已成功建立</p>
+
+        <div class="success-card">
+            
+            <div class="order-info-row">
+                <span>訂單編號</span>
+                <span style="font-family:'Times New Roman';">{{ order_id }}</span>
+            </div>
+            <div class="order-info-row">
+                <span>收件人</span>
+                <span>{{ name }}</span>
+            </div>
+            <div class="order-info-row" style="border-bottom: none;">
+                <span>付款方式</span>
+                <span>
+                    {% if payment_method == 'linepay' %} LINE Pay
+                    {% elif payment_method == 'atm' %} 銀行轉帳 / 網銀
+                    {% elif payment_method == 'jiekou' %} 街口支付
+                    {% else %} 其他方式 {% endif %}
+                </span>
+            </div>
+
+            <div class="payment-instruction-box">
+                
+                {% if payment_method == 'linepay' %}
+                    <div class="instruction-title">LINE Pay 付款步驟</div>
+                    <p>1. 請加入官方 LINE ID：<span class="bank-code">@PDK_OFFICIAL</span></p>
+                    <p>2. 告知客服您的訂單編號 <b>{{ order_id }}</b></p>
+                    <p>3. 客服將提供付款連結，付款完成後請截圖回傳。</p>
+                    <p style="margin-top:10px; color:#aaa; font-size:0.85rem;">*確認收款後我們將立即安排出貨。</p>
+                
+                {% elif payment_method == 'atm' %}
+                    <div class="instruction-title">匯款資訊</div>
+                    <p>銀行代碼：<span class="bank-code">822</span> (中國信託)</p>
+                    <p>銀行帳號：<span class="bank-code">1234-5678-9012</span></p>
+                    <p>戶名：PDK 工作室</p>
+                    <hr style="border:0; border-top:1px dashed #555; margin:10px 0;">
+                    <p>匯款後請至官方 LINE 回傳「帳號後五碼」以便對帳。</p>
+
+                {% elif payment_method == 'jiekou' %}
+                    <div class="instruction-title">街口支付步驟</div>
+                    <p>1. 請開啟街口支付 App 掃描下方 QR Code (如有)。</p>
+                    <p>2. 或輸入街口帳號：<span class="bank-code">901234567</span></p>
+                    <p>3. 轉帳備註請填寫訂單編號：{{ order_id }}</p>
+                    <p style="margin-top:10px; color:#aaa; font-size:0.85rem;">*請務必截圖回傳官方 LINE 以加速出貨。</p>
+                
+                {% else %}
+                    <div class="instruction-title">訂單處理中</div>
+                    <p>我們已收到您的訂單，專人將儘快與您聯繫確認付款與出貨細節。</p>
+                {% endif %}
+
+            </div>
+
+            <a href="/" class="btn-home">返回首頁</a>
+        </div>
+    </div>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. 清空購物車資料
+        localStorage.removeItem('pdk_cart');
+            
+        // 2. (選用) 更新頁面上的購物車圖示數字為 0 (如果有顯示的話)
+        const cartCountEl = document.querySelector('.cart-count'); // 假設您的圖示 class 是這個
+        if (cartCountEl) {
+            cartCountEl.innerText = '0';
+            cartCountEl.style.display = 'none';
+        }
+
+        console.log("訂單已成立，購物車已清空。");
+    });
+</script>
+</body>
+</html>

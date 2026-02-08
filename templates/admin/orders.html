@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P.D.K 訂單管理系統</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+
+    <nav class="admin-navbar">
+        <div class="navbar-brand">
+            <i class="fas fa-box-open"></i> P.D.K Admin
+        </div>
+        
+        <form class="navbar-search" action="/admin/orders" method="GET">
+            <input type="text" name="q" placeholder="搜尋訂單編號、姓名或電話..." value="{{ search_query }}">
+            <button type="submit"><i class="fas fa-search"></i></button>
+        </form>
+
+        <div class="navbar-actions">
+            <a href="/" target="_blank" class="nav-link"><i class="fas fa-external-link-alt"></i> 前往前台</a>
+            <a href="/admin/logout" class="nav-link text-danger"><i class="fas fa-sign-out-alt"></i> 登出</a>
+        </div>
+    </nav>
+
+    <div class="admin-layout">
+        
+        <aside class="admin-sidebar">
+            <div class="sidebar-menu">
+                
+                <a href="{{ url_for('admin_products') }}" class="menu-item" style="border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px; padding-bottom: 15px;">
+                    <span style="color: #e4e4e4; font-weight: bold;"><i class="fas fa-tags"></i> 商品管理</span>
+                </a>
+
+                <a href="{{ url_for('admin_orders', status='all') }}" class="menu-item {% if status_filter == 'all' %}active{% endif %}">
+                    <span><i class="fas fa-list"></i> 全部訂單</span>
+                    <span class="badge-count">{{ dashboard.cnt_all }}</span>
+                </a>
+                
+                <a href="{{ url_for('admin_orders', status='pending') }}" class="menu-item {% if status_filter == 'pending' %}active{% endif %}">
+                    <span><i class="fas fa-clock"></i> 未付款</span>
+                    {% if dashboard.cnt_pending > 0 %}
+                    <span class="badge-count active">{{ dashboard.cnt_pending }}</span>
+                    {% else %}
+                    <span class="badge-count">{{ dashboard.cnt_pending }}</span>
+                    {% endif %}
+                </a>
+                
+                <a href="{{ url_for('admin_orders', status='paid') }}" class="menu-item {% if status_filter == 'paid' %}active{% endif %}">
+                    <span><i class="fas fa-money-bill-wave"></i> 已付款待出貨</span>
+                    {% if dashboard.cnt_paid > 0 %}
+                    <span class="badge-count active">{{ dashboard.cnt_paid }}</span>
+                    {% else %}
+                    <span class="badge-count">{{ dashboard.cnt_paid }}</span>
+                    {% endif %}
+                </a>
+                
+                <a href="{{ url_for('admin_orders', status='shipped') }}" class="menu-item {% if status_filter == 'shipped' %}active{% endif %}">
+                    <span><i class="fas fa-shipping-fast"></i> 已出貨</span>
+                    <span class="badge-count">{{ dashboard.cnt_shipped }}</span>
+                </a>
+                
+                <a href="{{ url_for('admin_orders', status='done') }}" class="menu-item {% if status_filter == 'done' %}active{% endif %}">
+                    <span><i class="fas fa-check-circle"></i> 已完成</span>
+                    <span class="badge-count">{{ dashboard.cnt_done }}</span>
+                </a>
+                
+                <a href="{{ url_for('admin_orders', status='cancelled') }}" class="menu-item {% if status_filter == 'cancelled' %}active{% endif %}">
+                    <span><i class="fas fa-times-circle"></i> 已取消</span>
+                    <span class="badge-count">{{ dashboard.cnt_cancelled }}</span>
+                </a>
+            </div>
+        </aside>
+
+        <main class="admin-content">
+            
+            <div class="dashboard-grid">
+                <div class="stat-card">
+                    <div class="stat-icon bg-primary"><i class="fas fa-shopping-cart"></i></div>
+                    <div class="stat-info">
+                        <h3>{{ dashboard.today_orders }}</h3>
+                        <p>今日訂單</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-warning"><i class="fas fa-box"></i></div>
+                    <div class="stat-info">
+                        <h3>{{ dashboard.pending_ship }}</h3>
+                        <p>待出貨</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-success"><i class="fas fa-dollar-sign"></i></div>
+                    <div class="stat-info">
+                        <h3>${{ dashboard.today_revenue }}</h3>
+                        <p>今日營業額</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-info"><i class="fas fa-users"></i></div>
+                    <div class="stat-info">
+                        <h3>{{ dashboard.total_orders }}</h3>
+                        <p>總訂單數</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>訂單編號</th>
+                            <th>下單時間</th>
+                            <th>顧客資料</th>
+                            <th>金額</th>
+                            <th>付款方式</th> <th>配送方式</th> <th width="140">狀態</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td class="font-mono bold">{{ order.order_no }}</td>
+                            <td class="text-sm text-gray">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <div class="font-bold">{{ order.customer_name }}</div>
+                                <div class="text-sm text-gray">{{ order.customer_phone }}</div>
+                            </td>
+                            <td class="text-gold font-bold">NT$ {{ order.total_amount }}</td>
+                            
+                            <td class="text-gold font-bold">
+                                {{ order.payment_method }}
+                            </td>
+                            
+                            <td class="text-sm">
+                                {{ '宅配' if order.shipping_method == 'home' else '超商' }}
+                            </td>
+                            
+                            <td>
+                                <form action="/admin/order/update_status" method="POST">
+                                    <input type="hidden" name="order_id" value="{{ order.id }}">
+                                    <input type="hidden" name="source_page" value="list">
+                                    <select name="status" onchange="this.form.submit()" class="status-select {{ order.status }}">
+                                        <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>未付款</option>
+                                        <option value="paid" {% if order.status == 'paid' %}selected{% endif %}>已付款</option>
+                                        <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>已出貨</option>
+                                        <option value="done" {% if order.status == 'done' %}selected{% endif %}>已完成</option>
+                                        <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                                    </select>
+                                </form>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('admin_order_detail', order_id=order.id) }}" class="btn btn-detail">詳情</a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="empty-state">
+                                <i class="fas fa-inbox fa-3x"></i>
+                                <p>查無訂單資料</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if pagination.pages > 1 %}
+            <div class="pagination">
+                {% if pagination.has_prev %}
+                    <a href="{{ url_for('admin_orders', page=pagination.prev_num, status=status_filter, q=search_query) }}" class="page-btn">&laquo; 上一頁</a>
+                {% endif %}
+
+                <span class="page-info">第 {{ pagination.page }} 頁 / 共 {{ pagination.pages }} 頁</span>
+
+                {% if pagination.has_next %}
+                    <a href="{{ url_for('admin_orders', page=pagination.next_num, status=status_filter, q=search_query) }}" class="page-btn">下一頁 &raquo;</a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+        </main>
+    </div>
+
+</body>
+</html>

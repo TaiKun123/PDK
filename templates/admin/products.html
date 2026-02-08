@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>商品管理 | P.D.K Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+
+    <nav class="admin-navbar">
+        <div class="layout-container navbar-content">
+            <div class="navbar-brand"><i class="fas fa-box-open"></i> P.D.K Admin</div>
+            <div class="navbar-actions">
+                <a href="/" target="_blank" class="nav-link"><i class="fas fa-external-link-alt"></i> 前往前台</a>
+                <a href="/logout" class="nav-link text-danger"><i class="fas fa-sign-out-alt"></i> 登出</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="admin-layout layout-container">
+        
+        <aside class="admin-sidebar">
+            <div class="sidebar-menu">
+                <a href="{{ url_for('admin_orders') }}" class="menu-item">
+                    <span><i class="fas fa-list"></i> 訂單管理</span>
+                </a>
+
+                <a href="{{ url_for('admin_products') }}" class="menu-item {% if not current_category %}active{% endif %}">
+                    <span><i class="fas fa-tags"></i> 商品管理 (全部)</span>
+                </a>
+
+                <div style="margin-bottom: 10px; background: rgba(0,0,0,0.2);">
+                    <a href="{{ url_for('admin_products', category='shampoo') }}" class="submenu-link {% if current_category == 'shampoo' %}active{% endif %}">
+                        - 洗髮精
+                    </a>
+                    <a href="{{ url_for('admin_products', category='conditioner') }}" class="submenu-link {% if current_category == 'conditioner' %}active{% endif %}">
+                        - 潤髮乳
+                    </a>
+                    <a href="{{ url_for('admin_products', category='haircare') }}" class="submenu-link {% if current_category == 'haircare' %}active{% endif %}">
+                        - 保養品
+                    </a>
+                    <a href="{{ url_for('admin_products', category='otherproduct') }}" class="submenu-link {% if current_category == 'otherproduct' %}active{% endif %}">
+                        - 其他產品
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="admin-content">
+            
+            <div class="card-header header-actions">
+                <h2>
+                    {% if current_category == 'shampoo' %}洗髮精列表
+                    {% elif current_category == 'conditioner' %}潤髮乳列表
+                    {% elif current_category == 'haircare' %}保養品列表
+                    {% elif current_category == 'otherproduct' %}其他產品列表
+                    {% else %}全部商品列表
+                    {% endif %}
+                </h2>
+                <a href="/admin/product/edit" class="action-btn btn-complete btn-create">
+                    <i class="fas fa-plus"></i> 新增商品
+                </a>
+            </div>
+
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                <div style="background:rgba(0, 255, 136, 0.1); color:#00ff88; padding:10px; border-radius:4px; margin-bottom:20px; text-align:center;">
+                  {{ messages[0] }}
+                </div>
+              {% endif %}
+            {% endwith %}
+
+            <div class="card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th width="80">圖片</th>
+                            <th>編號 (ID)</th>
+                            <th>名稱</th>
+                            <th>分類</th>
+                            <th>價格</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products %}
+                        <tr>
+                            <td>
+                                {% if product.image %}
+                                <img src="{{ url_for('static', filename=product.image) }}" class="product-thumb">
+                                {% else %}
+                                <div class="product-thumb-placeholder">
+                                    <i class="fas fa-image"></i>
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td class="font-mono text-gray">{{ product.id }}</td>
+                            <td class="bold">{{ product.name }}</td>
+                            <td>
+                                <span class="badge-pill">
+                                    {% if product.category == 'shampoo' %}洗髮精
+                                    {% elif product.category == 'conditioner' %}潤髮乳
+                                    {% elif product.category == 'haircare' %}保養品
+                                    {% elif product.category == 'otherproduct' %}其他
+                                    {% else %}{{ product.category }}
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td class="text-gold bold">NT$ {{ product.price }}</td>
+                            <td>
+                                <div class="action-group">
+                                    <a href="/admin/product/edit/{{ product.id }}" class="btn-detail">編輯</a>
+                                    
+                                    <form action="/admin/product/delete" method="POST" onsubmit="return confirm('確定要刪除 {{ product.name }} 嗎？');">
+                                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                                        <button type="submit" class="btn-icon btn-delete btn-sm-icon"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align:center; padding: 40px; color: #666;">
+                                <i class="fas fa-box-open" style="font-size: 2rem; margin-bottom: 10px; display:block;"></i>
+                                此分類目前沒有商品
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

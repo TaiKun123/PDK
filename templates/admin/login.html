@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>會員登入 | P.D.K</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 專屬於登入頁的強制樣式 (寫在這裡最保險，不會被快取影響) */
+        body {
+            background-color: #050505;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .login-wrapper {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            margin-top: -50px; /* 視覺修正，讓它稍微往上偏一點點，不要太沉底 */
+        }
+        .login-box {
+            width: 100%;
+            max-width: 400px;
+            background: #141414;
+            padding: 40px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 2000; /* 確保它浮在最上面！ */
+            position: relative;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; color: #888; margin-bottom: 8px; font-size: 0.9rem; }
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            background: #222;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box; /* 關鍵！防止框框爆出去 */
+        }
+        .form-input:focus { outline: none; border-color: #d4af37; }
+        
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            background: #797979; /* 金色按鈕 */
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .btn-login:hover { background: #ffffffd9; }
+        
+        .error-msg {
+            color: #ff6b6b;
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            background: rgba(255, 107, 107, 0.1);
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .brand-logo {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="admin-navbar">
+        <div class="layout-container navbar-content">
+            <div class="navbar-brand">
+                <i class="fas fa-box-open"></i> P.D.K System
+            </div>
+            <div class="navbar-actions">
+                <a href="/" class="nav-link"><i class="fas fa-home"></i> 回前台首頁</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="login-wrapper">
+        <div class="login-box">
+            <div class="brand-logo">MEMBER LOGIN</div>
+            
+            <form method="POST" action="/login">
+                <div class="form-group">
+                    <label>電子信箱 (Email)</label>
+                    <input type="text" name="username" class="form-input" placeholder="admin@pdk.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>密碼 (Password)</label>
+                    <input type="password" name="password" class="form-input" placeholder="請輸入密碼" required>
+                </div>
+                
+                <button type="submit" class="btn-login">登入</button>
+            </form>
+            
+            {% if error %}
+            <div class="error-msg">
+                <i class="fas fa-exclamation-circle"></i> {{ error }}
+            </div>
+            {% endif %}
+
+            <div style="text-align: center; margin-top: 20px; color: #666; font-size: 0.85rem;">
+                還沒有帳號？請聯繫管理員
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

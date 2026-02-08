@@ -1,7 +1,7 @@
 /* static/js/checkout.js */
 
 // ==========================================
-// 0. 台灣行政區資料庫 (完整版)
+// 0. 台灣行政區資料庫 (保留原樣)
 // ==========================================
 const taiwanDistricts = {
     "台北市": ["中正區", "大同區", "中山區", "松山區", "大安區", "萬華區", "信義區", "士林區", "北投區", "內湖區", "南港區", "文山區"],
@@ -29,15 +29,63 @@ const taiwanDistricts = {
 };
 
 // ==========================================
-// 1. 初始化資料
+// 1. 初始化變數
 // ==========================================
 let cart = JSON.parse(localStorage.getItem('pdk_cart')) || [];
-let shippingFee = 100; // 預設黑貓
+let shippingFee = 100;
 let discount = 0;
 const PROMO_THRESHOLD = 1000;
 
 // ==========================================
-// 2. 渲染頁面
+// 2. 啟動 (DOM Ready)
+// ==========================================
+document.addEventListener('DOMContentLoaded', function() {
+    renderPage();
+    initCitySelector();
+    
+    // UI 事件綁定
+    const shippingSelect = document.getElementById('shippingSelect');
+    if (shippingSelect) shippingSelect.addEventListener('change', updateShipping);
+
+    const btnApplyPromo = document.getElementById('btnApplyPromo');
+    if (btnApplyPromo) btnApplyPromo.addEventListener('click', applyPromo);
+    
+    const confirmationHeader = document.getElementById('confirmationHeader');
+    if (confirmationHeader) confirmationHeader.addEventListener('click', toggleConfirmation);
+    
+    const btnSubmitOrder = document.getElementById('btnSubmitOrder');
+    if (btnSubmitOrder) btnSubmitOrder.addEventListener('click', submitOrder);
+
+    // ★ 新增：輸入欄位即時驗證 (Blur 事件)
+    const nameInput = document.getElementById('inputName');
+    if(nameInput) nameInput.addEventListener('blur', checkName);
+
+    const phoneInput = document.getElementById('inputPhone');
+    if(phoneInput) phoneInput.addEventListener('blur', checkPhone);
+
+    const emailInput = document.getElementById('inputEmail');
+    if(emailInput) emailInput.addEventListener('blur', checkEmail);
+
+    const addressInput = document.getElementById('addressInput');
+    if(addressInput) {
+        addressInput.addEventListener('blur', () => {
+            if(document.getElementById('shippingSelect').value === 'home') checkDeliveryInfo();
+        });
+    }
+
+    const storeInput = document.getElementById('storeNameInput');
+    if(storeInput) {
+        storeInput.addEventListener('blur', () => {
+            if(document.getElementById('shippingSelect').value === 'store') checkDeliveryInfo();
+        });
+    }
+
+    // 初始化狀態
+    updateShipping();
+});
+
+// ==========================================
+// 3. 渲染頁面 (保留原樣)
 // ==========================================
 function renderPage() {
     const listEl = document.getElementById('checkoutItemsList');
@@ -59,18 +107,15 @@ function renderPage() {
         html += `
         <div class="checkout-item">
             <div class="checkout-img product-bg-${item.id}"></div>
-            
             <div style="flex:1;">
                 <div style="font-size:0.95rem; margin-bottom:5px;">${item.name}</div>
                 <div style="font-size:0.85rem; color:#888;">NT$ ${item.price}</div>
-                
                 <div class="mini-qty-control">
                     <div class="mini-qty-btn" onclick="changeQty('${item.id}', -1)">-</div>
                     <div class="mini-qty-num">${item.qty}</div>
                     <div class="mini-qty-btn" onclick="changeQty('${item.id}', 1)">+</div>
                 </div>
             </div>
-            
             <div style="font-family:'Times New Roman'; font-size:1rem;">NT$ ${itemTotal.toLocaleString()}</div>
         </div>
         `;
@@ -81,49 +126,33 @@ function renderPage() {
 }
 
 // ==========================================
-// 3. 數值更新核心 (小計、運費、總額、贈品)
+// 4. 數值更新核心 (保留原樣)
 // ==========================================
 function updateValues(subtotal) {
-    // 讀取運費
-    const select = document.getElementById('shippingSelect');
-    if (select) {
-        shippingFee = parseInt(select.options[select.selectedIndex].dataset.price);
-    }
-
-    // 計算合計
     let total = subtotal + shippingFee - discount;
     if (total < 0) total = 0;
 
-    // DOM 更新
-    const headerSubtotal = document.getElementById('headerSubtotal');
-    if(headerSubtotal) headerSubtotal.innerText = subtotal.toLocaleString();
-    
-    const rightSubtotal = document.getElementById('rightSubtotal');
-    if(rightSubtotal) rightSubtotal.innerText = subtotal.toLocaleString();
-    
-    const summarySubtotal = document.getElementById('summarySubtotal');
-    if(summarySubtotal) summarySubtotal.innerText = subtotal.toLocaleString();
+    safeSetText('headerSubtotal', subtotal.toLocaleString());
+    safeSetText('rightSubtotal', subtotal.toLocaleString());
+    safeSetText('summarySubtotal', subtotal.toLocaleString());
+    safeSetText('summaryShipping', shippingFee);
+    safeSetText('summaryDiscount', discount);
+    safeSetText('summaryTotal', total.toLocaleString());
 
-    const summaryShipping = document.getElementById('summaryShipping');
-    if(summaryShipping) summaryShipping.innerText = shippingFee;
+    // ★★★ 新增這段：同步更新隱藏欄位，讓後端收得到折扣金額 ★★★
+    const hiddenDiscount = document.getElementById('hiddenDiscountInput');
+    if (hiddenDiscount) {
+        hiddenDiscount.value = discount;
+    }
+    // ★★★ 新增結束 ★★★
 
-    const summaryDiscount = document.getElementById('summaryDiscount');
-    if(summaryDiscount) summaryDiscount.innerText = discount;
-
-    const summaryTotal = document.getElementById('summaryTotal');
-    if(summaryTotal) summaryTotal.innerText = total.toLocaleString();
-
-    // 優惠券顯示控制
     const discRow = document.getElementById('discountRow');
-    if(discRow) discRow.style.display = discount > 0 ? 'flex' : 'none';
+    if (discRow) discRow.style.display = discount > 0 ? 'flex' : 'none';
 
-    // 滿額贈邏輯
     const promoEl = document.getElementById('promoTask');
     const promoText = document.getElementById('promoText');
-    
     if (promoEl && promoText) {
         const icon = promoEl.querySelector('.task-icon');
-
         if (subtotal >= PROMO_THRESHOLD) {
             promoEl.className = 'promo-task-bar task-success';
             icon.innerText = '✓';
@@ -137,10 +166,60 @@ function updateValues(subtotal) {
     }
 }
 
+function safeSetText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = text;
+}
+
 // ==========================================
-// 4. 修改數量功能
+// 5. 變更運費 & UI 切換 (保留原樣)
 // ==========================================
-function changeQty(id, delta) {
+function updateShipping() {
+    const select = document.getElementById('shippingSelect');
+    if (!select) return;
+
+    const selectedOption = select.options[select.selectedIndex];
+    if (selectedOption) {
+        shippingFee = parseInt(selectedOption.dataset.price);
+    }
+
+    const method = select.value;
+    const homeGroup = document.getElementById('homeDeliveryGroup');
+    const storeGroup = document.getElementById('storePickupGroup');
+    
+    // 雖然驗證邏輯已改用 JS 控制，但保留 required 屬性可作為輔助
+    const citySelect = document.getElementById('citySelect');
+    const districtSelect = document.getElementById('districtSelect');
+    const addressInput = document.getElementById('addressInput');
+    const storeInput = document.getElementById('storeNameInput');
+
+    if (method === 'home') {
+        if(homeGroup) homeGroup.style.display = 'block';
+        if(storeGroup) storeGroup.style.display = 'none';
+        
+        if(citySelect) citySelect.setAttribute('required', 'required');
+        if(districtSelect) districtSelect.setAttribute('required', 'required');
+        if(addressInput) addressInput.setAttribute('required', 'required');
+        if(storeInput) storeInput.removeAttribute('required');
+
+    } else {
+        if(homeGroup) homeGroup.style.display = 'none';
+        if(storeGroup) storeGroup.style.display = 'block';
+        
+        if(citySelect) citySelect.removeAttribute('required');
+        if(districtSelect) districtSelect.removeAttribute('required');
+        if(addressInput) addressInput.removeAttribute('required');
+        if(storeInput) storeInput.setAttribute('required', 'required');
+    }
+
+    let subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    updateValues(subtotal);
+}
+
+// ==========================================
+// 6. 頁面功能函數 (保留原樣)
+// ==========================================
+window.changeQty = function(id, delta) {
     let item = cart.find(i => i.id === id);
     if (item) {
         item.qty += delta;
@@ -150,51 +229,30 @@ function changeQty(id, delta) {
         localStorage.setItem('pdk_cart', JSON.stringify(cart));
         renderPage();
     }
-}
+};
 
-// ==========================================
-// 5. 變更運費
-// ==========================================
-function updateShipping() {
+function applyPromo() {
+    const input = document.getElementById('promoInput');
+    const msg = document.getElementById('promoMsg');
+    if (!input) return;
+
+    const code = input.value.trim().toUpperCase();
+    if (code === 'VIP50') {
+        discount = 50;
+        if(msg) { msg.style.color = '#4caf50'; msg.innerText = '優惠碼套用成功！折抵 NT$50'; }
+    } else {
+        discount = 0;
+        if(msg) { msg.style.color = '#ff5252'; msg.innerText = '無效的優惠碼'; }
+    }
+    
     let subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
     updateValues(subtotal);
 }
 
-// ==========================================
-// 6. 套用優惠碼
-// ==========================================
-function applyPromo() {
-    const input = document.getElementById('promoInput');
-    const msg = document.getElementById('promoMsg');
-    
-    if (!input) return;
-
-    const code = input.value.trim().toUpperCase();
-
-    if (code === 'VIP50') {
-        discount = 50;
-        if(msg) {
-            msg.style.color = '#4caf50';
-            msg.innerText = '優惠碼套用成功！折抵 NT$50';
-        }
-    } else {
-        discount = 0;
-        if(msg) {
-            msg.style.color = '#ff5252';
-            msg.innerText = '無效的優惠碼';
-        }
-    }
-    updateShipping();
-}
-
-// ==========================================
-// 7. 手機版收合切換
-// ==========================================
 function toggleConfirmation() {
     if (window.innerWidth >= 992) return;
     const content = document.getElementById('confirmationContent');
     const icon = document.querySelector('.toggle-icon');
-    
     if (content) {
         if (content.classList.contains('open')) {
             content.classList.remove('open');
@@ -206,16 +264,11 @@ function toggleConfirmation() {
     }
 }
 
-// ==========================================
-// 8. 縣市區域連動邏輯 (新增部分)
-// ==========================================
 function initCitySelector() {
     const citySelect = document.getElementById('citySelect');
     const districtSelect = document.getElementById('districtSelect');
-
     if (!citySelect || !districtSelect) return;
 
-    // 填入所有縣市
     for (let city in taiwanDistricts) {
         let option = document.createElement('option');
         option.value = city;
@@ -223,15 +276,10 @@ function initCitySelector() {
         citySelect.appendChild(option);
     }
 
-    // 監聽變更
     citySelect.addEventListener('change', function() {
         const selectedCity = this.value;
         const districts = taiwanDistricts[selectedCity];
-
-        // 清空區域選單
         districtSelect.innerHTML = '<option value="" disabled selected>請選擇區域</option>';
-
-        // 填入對應區域
         if (districts) {
             districts.forEach(district => {
                 let option = document.createElement('option');
@@ -244,9 +292,182 @@ function initCitySelector() {
 }
 
 // ==========================================
-// 9. 啟動 (DOM Ready)
+// 7. ★ 新增：進階驗證邏輯與送出
 // ==========================================
-document.addEventListener('DOMContentLoaded', function() {
-    renderPage();
-    initCitySelector(); // 啟動縣市選單
-});
+
+// Regex 定義
+const patterns = {
+    name: /^[\u4e00-\u9fa5a-zA-Z\s]+$/, // 中文、英文、空格
+    email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ 
+};
+
+// 輔助函式：顯示錯誤/成功 UI
+function showError(input, errorMsgDiv) {
+    input.classList.add('error');
+    if (errorMsgDiv) errorMsgDiv.classList.add('show');
+}
+function showSuccess(input, errorMsgDiv) {
+    input.classList.remove('error');
+    if (errorMsgDiv) errorMsgDiv.classList.remove('show');
+}
+
+// A. 驗證姓名
+function checkName() {
+    const input = document.getElementById('inputName');
+    if(!input) return false;
+    const error = input.parentElement.querySelector('.error-msg');
+    const val = input.value.trim();
+
+    if (patterns.name.test(val) && val.length >= 2) {
+        showSuccess(input, error);
+        return true;
+    } else {
+        showError(input, error);
+        return false;
+    }
+}
+
+// B. 驗證電話 (含自動補0、去除非數字)
+function checkPhone() {
+    const input = document.getElementById('inputPhone');
+    if(!input) return false;
+    const error = input.parentElement.querySelector('.error-msg');
+    let val = input.value;
+
+    // 移除所有非數字
+    val = val.replace(/\D/g, '');
+
+    // 邏輯：如果是 9 開頭且長度是 9 (例如 912345678)，自動補 0
+    if (val.length === 9 && val.startsWith('9')) {
+        val = '0' + val;
+    }
+
+    // 最終檢查：09開頭 + 10碼
+    if (val.length === 10 && val.startsWith('09')) {
+        input.value = val; // 填回乾淨的號碼
+        showSuccess(input, error);
+        return true;
+    } else {
+        showError(input, error);
+        return false;
+    }
+}
+
+// C. 驗證 Email (含 ggmail 自動修正)
+function checkEmail() {
+    const input = document.getElementById('inputEmail');
+    if(!input) return false;
+    const error = input.parentElement.querySelector('.error-msg');
+    const suggestion = document.getElementById('emailSuggestion');
+    let val = input.value.trim().toLowerCase();
+
+    // 常見錯誤修正
+    const typos = ['@ggmail.', '@gamil.', '@gmal.', '@gnail.', '@gmai.'];
+    let autoFixed = false;
+
+    typos.forEach(typo => {
+        if (val.includes(typo)) {
+            val = val.replace(typo, '@gmail.');
+            input.value = val;
+            autoFixed = true;
+        }
+    });
+
+    // 顯示修正提示
+    if (autoFixed && suggestion) {
+        suggestion.innerText = "已為您修正為 @gmail.com";
+        suggestion.style.display = 'block';
+        setTimeout(() => { suggestion.style.display = 'none'; }, 3000);
+    } else if (suggestion) {
+        suggestion.style.display = 'none';
+    }
+
+    if (patterns.email.test(val)) {
+        showSuccess(input, error);
+        return true;
+    } else {
+        showError(input, error);
+        return false;
+    }
+}
+
+// D. 驗證地址 (依據運送方式)
+function checkDeliveryInfo() {
+    const methodSelect = document.getElementById('shippingSelect');
+    if(!methodSelect) return false;
+    const method = methodSelect.value;
+    
+    if (method === 'home') {
+        const city = document.getElementById('citySelect');
+        const district = document.getElementById('districtSelect');
+        const addr = document.getElementById('addressInput');
+        const addrError = addr ? addr.parentElement.querySelector('.error-msg') : null;
+        
+        // 檢查縣市區域
+        let isCityOk = city && city.value !== "";
+        let isDistOk = district && district.value !== "";
+        
+        if (city) { isCityOk ? city.classList.remove('error') : city.classList.add('error'); }
+        if (district) { isDistOk ? district.classList.remove('error') : district.classList.add('error'); }
+
+        // 檢查地址長度 (至少8字)
+        let isAddrOk = false;
+        if (addr && addr.value.trim().length >= 8) {
+            showSuccess(addr, addrError);
+            isAddrOk = true;
+        } else if (addr) {
+            showError(addr, addrError);
+        }
+
+        return isCityOk && isDistOk && isAddrOk;
+
+    } else {
+        // 超商取貨驗證
+        const store = document.getElementById('storeNameInput');
+        const storeError = store ? store.parentElement.querySelector('.error-msg') : null;
+        
+        if (store && store.value.trim().length >= 2) {
+            showSuccess(store, storeError);
+            return true;
+        } else if (store) {
+            showError(store, storeError);
+            return false;
+        }
+        return false;
+    }
+}
+
+// E. 最終送出訂單
+function submitOrder() {
+    // 1. 檢查購物車
+    if (cart.length === 0) {
+        alert("購物車是空的，無法結帳！");
+        return;
+    }
+    
+    // 2. 執行所有自訂驗證
+    const vEmail = checkEmail();
+    const vName = checkName();
+    const vPhone = checkPhone();
+    const vDelivery = checkDeliveryInfo();
+    
+    if (vEmail && vName && vPhone && vDelivery) {
+        if(confirm("確定要送出訂單嗎？")) {
+            // 填入購物車資料並送出
+            document.getElementById('hiddenCartInput').value = JSON.stringify(cart);
+            const form = document.getElementById('checkoutForm');
+            
+            // 為了配合 Flask 後端，設定 action 並送出
+            form.action = "/submit_order";
+            form.method = "POST";
+            form.submit();
+        }
+    } else {
+        alert("請檢查紅色標示的欄位是否填寫正確。");
+        // 滾動到第一個錯誤處
+        const firstError = document.querySelector('.error');
+        if(firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+}
