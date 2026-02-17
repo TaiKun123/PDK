@@ -7,6 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy import extract
 from flask_mail import Mail, Message
 from datetime import datetime, timedelta # 確保引入這兩個# ★★★ 新增：寄信模組
+from threading import Thread # ★★★ 新增這行
 import os
 import json
 import datetime
@@ -38,6 +39,15 @@ UPLOAD_FOLDER = os.path.join('static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # 允許上傳的圖片格式
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+# --- ★★★ 新增：背景非同步寄信函式 ★★★ ---
+def send_async_email(app, msg):
+    with app.app_context():
+        try:
+            mail.send(msg)
+            print(f"✅ 背景寄信成功: {msg.recipients}")
+        except Exception as e:
+            print(f"❌ 背景寄信失敗: {e}")
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -1030,14 +1040,13 @@ def send_verification_code():
     # 產生 6 位數驗證碼
     code = str(random.randint(100000, 999999))
     
-    # 將驗證碼存入 Session (暫存伺服器記憶體中)
+    # 將驗證碼存入 Session
     session['verification_code'] = code
-    session['verification_email'] = email # 綁定這個 Email，防止他用 A 驗證卻註冊 B
+    session['verification_email'] = email
 
-    try:
-        # 寄信內容
-        msg = Message("【P.D.K】您的註冊驗證碼", recipients=[email])
-        msg.body = f"""
+    # 準備信件內容
+    msg = Message("【P.D.K】您的註冊驗證碼", recipients=[email])
+    msg.body = f"""
 親愛的顧客您好，
 
 歡迎加入 P.D.K 會員！
@@ -1048,11 +1057,12 @@ def send_verification_code():
 
 P.D.K 團隊 敬上
 """
-        mail.send(msg)
-        return jsonify({'success': True, 'message': '驗證碼已發送！'})
-    except Exception as e:
-        print(f"寄信錯誤: {e}")
-        return jsonify({'success': False, 'message': '寄信失敗，請檢查 Email 是否正確'})
+
+    # ★★★ 關鍵修改：使用 Thread (執行緒) 在背景寄信 ★★★
+    # 這樣網頁就會立刻回應，不會卡住轉圈圈
+    Thread(target=send_async_email, args=(app._get_current_object(), msg)).start()
+
+    return jsonify({'success': True, 'message': '驗證碼已發送！(請稍後檢查信箱)'})
 
 
 # ★★★ 新增：會員註冊路由 ★★★
