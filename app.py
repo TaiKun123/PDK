@@ -657,14 +657,11 @@ def send_merchant_new_order_email(order):
     except Exception as e:
         print(f"❌ 商家通知信發送失敗: {e}")
 
-# 修改後的 send_voucher_notification_email
+# 修改：折扣券通知信 - 改用 Brevo + 背景發送
 def send_voucher_notification_email(user, voucher_title, amount, description):
     try:
-        msg = Message(f"【P.D.K】恭喜獲得 ${amount} 折扣券！",
-                      recipients=[user.email])
-        
-        # 使用 render_template 或直接寫 HTML 字串
-        msg.html = f"""
+        subject = f"【P.D.K】恭喜獲得 ${amount} 折扣券！"
+        content = f"""
         <html>
         <body>
             <h2>恭喜您獲得專屬優惠！</h2>
@@ -672,15 +669,34 @@ def send_voucher_notification_email(user, voucher_title, amount, description):
             <p>我們已將一張 <b>{voucher_title}</b> 存入您的帳戶。</p>
             <p>折抵金額：NT$ {amount}</p>
             <p>說明：{description}</p>
-            <a href="{url_for('home', _external=True)}">立即使用</a>
+            <p><a href="{url_for('home', _external=True)}">立即使用</a></p>
         </body>
         </html>
         """
-        mail.send(msg) # 使用全域的 mail 物件
-        print(f"折扣券通知信已寄送至 {user.email}")
+        Thread(target=send_via_brevo, args=(user.email, subject, content)).start()
+        print(f"✅ 折扣券通知信已背景發送至 {user.email}")
     except Exception as e:
-        print(f"寄送折扣券通知信失敗: {e}")
+        print(f"❌ 寄送折扣券通知信失敗: {e}")
+        
 
+def send_shipping_notification_email(order):
+    try:
+        subject = f"【P.D.K】商品出貨通知 (編號：{order.order_no})"
+        content = f"""
+        <html>
+        <body>
+            <h2>您的商品已出貨！</h2>
+            <p>親愛的 {order.customer_name}，</p>
+            <p>您的訂單 <b>{order.order_no}</b> 已經安排出貨。</p>
+            <p>感謝您的耐心等待，商品將在近期送達。</p>
+        </body>
+        </html>
+        """
+        # 改用 Brevo 背景發送
+        Thread(target=send_via_brevo, args=(order.customer_email, subject, content)).start()
+        print(f"✅ 出貨通知信已排入背景發送 (訂單 {order.order_no})")
+    except Exception as e:
+        print(f"❌ 出貨通知信發送失敗: {e}")
 # ==============================================================================
 # ★★★ 新增區塊 2：優惠券檢查 API (給前端 JS 呼叫) ★★★
 # ==============================================================================
@@ -1802,6 +1818,9 @@ def update_order_status():
         old_status = order.status
         order.status = new_status
         
+        if new_status == 'shipped' and old_status != 'shipped':
+            send_shipping_notification_email(order)
+        
         if new_status == 'paid' and not order.paid_at:
             order.paid_at = datetime.datetime.now()
             
@@ -1879,23 +1898,29 @@ def contact():
         
         # 寄信給管理員 (您自己)
         try:
-            msg = Message(f"【官網留言】{subject} - 来自 {name}",
-                          recipients=[app.config['MAIL_USERNAME']]) # 寄給自己
+            subject_full = f"【官網留言】{subject} - 来自 {name}"
+            # 收件人設為您自己的官方信箱
+            admin_email = "pdk.salon.office@gmail.com" 
             
-            msg.body = f"""
-            姓名: {name}
-            信箱: {email}
-            
-            留言內容:
-            {message_body}
+            content = f"""
+            <html>
+            <body>
+                <h3>官網收到新留言</h3>
+                <p><b>姓名:</b> {name}</p>
+                <p><b>信箱:</b> {email}</p>
+                <p><b>留言內容:</b><br>{message_body}</p>
+            </body>
+            </html>
             """
-            mail.send(msg)
-            flash('訊息已發送！我們會盡快回覆您。', 'success') # 使用綠色成功提示
+            
+            Thread(target=send_via_brevo, args=(admin_email, subject_full, content)).start()
+            
+            flash('訊息已發送！我們會盡快回覆您。', 'success')
             return redirect(url_for('contact'))
             
         except Exception as e:
-            print(e)
-            flash('發送失敗，請稍後再試，或直接使用 LINE 聯繫我們。', 'error')
+            print(f"Contact mail error: {e}")
+            flash('發送失敗，請稍後再試。', 'error')
             
     return render_template('contact.html')
 
