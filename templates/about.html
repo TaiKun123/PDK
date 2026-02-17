@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>關於我們 | P.D.K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* 關於我們頁面專屬樣式 */
+        .about-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 120px 20px 60px; /* 上方留白避開 Navbar */
+            color: #fff;
+        }
+
+        .page-title {
+            text-align: center;
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            margin-bottom: 80px;
+            letter-spacing: 3px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 30px;
+            display: inline-block;
+            width: 100%;
+        }
+
+        /* 每一列的容器 (Row) */
+        .about-row {
+            display: flex;
+            align-items: center; /* 垂直置中 */
+            justify-content: space-between;
+            gap: 60px; /* 圖文之間的間距 */
+            margin-bottom: 100px; /* 每一段落的間距 */
+        }
+
+        /* 偶數列反轉 (左文右圖) */
+        .about-row.reverse {
+            flex-direction: row-reverse;
+        }
+
+        /* 圖片區塊 (綠色框框) */
+        .about-img-box {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            border-radius: 4px;
+            /* 設定圖片長寬比，這裡設為直向長方形 (3:4) */
+            aspect-ratio: 3 / 4; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .about-img-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* 讓圖片填滿框框不變形 */
+            transition: transform 0.6s ease;
+            filter: grayscale(30%); /* 預設帶點灰階，更有質感 */
+        }
+
+        .about-img-box:hover img {
+            transform: scale(1.05); /* 滑鼠移過去微放大 */
+            filter: grayscale(0%);
+        }
+
+        /* 文字區塊 (藍色框框) */
+        .about-text-box {
+            flex: 1;
+            padding: 20px;
+        }
+
+        .section-eng-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            color: #fff;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        .section-chn-title {
+            font-size: 1.1rem;
+            color: #aaa;
+            margin-bottom: 30px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            border-left: 3px solid #fff;
+            padding-left: 15px;
+        }
+
+        .about-desc {
+            font-size: 0.95rem;
+            line-height: 1.8; /* 行距拉開比較好讀 */
+            color: #ccc;
+            text-align: justify; /* 左右對齊 */
+        }
+
+        .highlight-list {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .highlight-item {
+            margin-bottom: 10px;
+            color: #e0e0e0;
+        }
+        .highlight-item strong {
+            color: #fff;
+            font-family: 'Playfair Display', serif;
+            margin-right: 5px;
+            font-size: 1.1rem;
+        }
+
+        /* 手機版響應式設計 */
+        @media (max-width: 768px) {
+            .about-row, .about-row.reverse {
+                flex-direction: column; /* 手機版全部變成直向 */
+                gap: 30px;
+                margin-bottom: 60px;
+            }
+
+            .about-img-box {
+                width: 100%;
+                aspect-ratio: 4 / 3; /* 手機版圖片改為橫向比較好閱讀，也可維持 3/4 */
+            }
+
+            .page-title {
+                font-size: 2rem;
+                margin-bottom: 40px;
+            }
+            
+            .section-eng-title {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-fixed-layer"></div>
+
+    <nav class="navbar">
+        <div class="menu-toggle" onclick="openNav()">&#9776;</div>
+        <a href="/" class="logo">P  D  K</a>
+        <div class="cart-wrapper" onclick="toggleCart()">
+            <svg class="cart-icon-svg" viewBox="0 0 24 24">
+                <path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/>
+                <circle cx="9" cy="20" r="1.5" fill="#fff"/>
+                <circle cx="17" cy="20" r="1.5" fill="#fff"/>
+            </svg>
+            <span class="cart-badge">0</span>
+        </div>
+    </nav>
+
+    {% include 'includes/sidebar.html' %}
+    {% include 'includes/cart_drawer.html' %}
+
+    <div class="about-container">
+        
+        <h1 class="page-title">ABOUT US</h1>
+
+        <div class="about-row">
+            <div class="about-img-box">
+                <img src="{{ url_for('static', filename='other_photos/700產品集.jpg') }}" alt="PDK Brand Philosophy">
+            </div>
+            <div class="about-text-box">
+                <h2 class="section-eng-title">PHILOSOPHY</h2>
+                <h3 class="section-chn-title">品牌理念：Pure, Deep, Keep</h3>
+                <div class="about-desc">
+                    <p>PDK 的誕生，源自於對「極致護理」的執著。我們深信，真正的保養不該只是表面的滑順，而是一場循序漸進的旅程。</p>
+                    
+                    <div class="highlight-list">
+                        <div class="highlight-item">
+                            <strong>Pure (純淨)</strong> 從頭皮開始，洗去負擔，回歸最純粹的健康狀態。
+                        </div>
+                        <div class="highlight-item">
+                            <strong>Deep (深層)</strong> 深入髮芯，修復受損結構，注入所需的營養與水分。
+                        </div>
+                        <div class="highlight-item">
+                            <strong>Keep (永續)</strong> 鎖住美好，讓那份剛走出沙龍的光澤與彈性，延續到你的每一個日常。
+                        </div>
+                    </div>
+                    
+                    <p>專為亞洲濕熱氣候設計，喚醒秀髮原始的生命力，這就是 PDK 的承諾。</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="about-row reverse">
+            <div class="about-img-box">
+                <img src="{{ url_for('static', filename='other_photos/堅果&摩洛哥.jpg') }}" alt="Origin from Yilan">
+            </div>
+            <div class="about-text-box">
+                <h2 class="section-eng-title">ORIGIN</h2>
+                <h3 class="section-chn-title">起源：來自宜蘭的雨，淬鍊出的沙龍專業</h3>
+                <div class="about-desc">
+                    <p>我們來自宜蘭，這座被稱為「雨都」的城市。在這裡，每天都在第一線面對深受潮濕、扁塌、毛躁困擾的客人。</p>
+                    <p>正是因為身處在最考驗髮質的環境，我們比誰都清楚：「一般的洗髮精，應付不了台灣的濕氣。」</p>
+                    <p>PDK 是由專業設計師親手研發，經過無數次在沙龍現場的測試與改良。我們將解決「油頭、塌髮、受損」的實戰經驗，濃縮進每一瓶產品裡。</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="about-row">
+            <div class="about-img-box">
+                <img src="{{ url_for('static', filename='other_photos/850產品集.jpg') }}" alt="Future Vision">
+            </div>
+            <div class="about-text-box">
+                <h2 class="section-eng-title">VISION</h2>
+                <h3 class="section-chn-title">未來願景：美麗與地球共生</h3>
+                <div class="about-desc">
+                    <p>在追求秀髮極致美感的同時，我們也沒有忘記對土地的責任。</p>
+                    <p>PDK 致力於推動「綠色保養」，未來我們將持續減少不必要的化學添加，並逐步採用更環保的可回收包裝材質。</p>
+                    <p>我們堅持無動物實驗，並計畫投入更多資源於環境友善成分的研發。我們希望，當您在浴室享受洗沐時光時，不僅療癒了自己，也溫柔地對待了我們的地球。</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function openNav() {
+            var sidenav = document.getElementById("mySidenav");
+            if(sidenav) sidenav.style.width = "280px"; 
+            var overlay = document.getElementById("menuOverlay");
+            if(overlay) overlay.classList.add("show");
+        }
+    </script>
+</body>
+</html>

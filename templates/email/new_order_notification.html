@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: sans-serif; color: #333; }
+        .alert { color: #d9534f; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>【新訂單通知】您有一筆新的訂單！</h2>
+    
+    <p class="alert">訂單編號：{{ order.order_no }}</p>
+    <p>顧客姓名：{{ order.customer_name }}</p>
+    <p>顧客電話：{{ order.customer_phone }}</p>
+    <p>訂單金額：NT$ {{ order.final_total }}</p>
+    <p>付款方式：{{ order.payment_method }}</p>
+    
+    <hr>
+    <h3>商品內容：</h3>
+    <ul>
+        {% for item in items %}
+        <li>{{ item.name }} (規格: {{ item.color or '無' }}) x {{ item.qty }}</li>
+        {% endfor %}
+    </ul>
+    
+    <p>請記得至 <a href="{{ url_for('admin_orders', _external=True) }}">後台管理系統</a> 查看詳情並安排出貨。</p>
+</body>
+</html>

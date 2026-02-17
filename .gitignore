@@ -1,0 +1,28 @@
+# 忽略 Python 編譯檔
+__pycache__/
+*.py[cod]
+
+# 忽略虛擬環境
+venv/
+env/
+.env
+
+# 忽略資料庫 (重要！這是個資！)
+instance/
+*.db
+*.sqlite3
+
+# 忽略我們剛剛做的備份資料夾
+backups/
+PDK_備份/
+
+# 忽略 IDE 設定
+.vscode/
+.idea/
+/instance
+/instance
+/instance
+instance/pdk.db
+/instance
+instance/pdk.db
+/instance

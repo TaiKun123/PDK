@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加入會員 | P.D.K</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="bg-fixed-layer"></div>
+    
+    <nav class="navbar" style="position: fixed; top: 0; width: 100%; background: transparent; box-shadow: none; border-bottom: none; z-index: 1000;">
+        <div class="menu-toggle" onclick="openNav()">&#9776;</div>
+        <a href="/" class="logo">P  D  K</a>
+        <div style="width: 30px; margin-right: 10px;"></div>
+    </nav>
+
+    {% include 'includes/sidebar.html' %}
+
+    <div class="auth-container">
+        <div class="auth-card">
+            <h2 class="auth-title">Register</h2>
+            
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="alert-box">
+                        <i class="fas fa-exclamation-circle"></i> {{ messages[0] }}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form action="/register" method="POST" id="registerForm" novalidate>
+                
+                <div class="auth-form-group">
+                    <label class="auth-label">姓名 Name</label>
+                    <input type="text" name="name" id="name" class="auth-input" placeholder="請輸入您的稱呼">
+                    <div class="field-error-msg" id="error-name">請輸入您的姓名</div>
+                </div>
+
+                <div class="auth-form-group">
+                    <label class="auth-label">電子信箱 Email</label>
+                    
+                    <div style="position: relative;">
+                        <input type="email" name="email" id="email" class="auth-input" placeholder="example@email.com" style="padding-right: 110px;">
+                        
+                        <button type="button" id="sendCodeBtn" class="btn-send-code">發送驗證碼</button>
+                    </div>
+                    
+                    <div class="field-error-msg" id="error-email">請輸入有效的 Email 格式</div>
+                    <div id="email-feedback" style="font-size: 0.8rem; margin-top: 5px; text-align: left;"></div>
+                </div>
+
+                <div class="auth-form-group">
+                    <label class="auth-label">驗證碼 Verification Code</label>
+                    <input type="text" name="verification_code" id="verification_code" class="auth-input" placeholder="請輸入信箱收到的 6 位數代碼" maxlength="6">
+                    <div class="field-error-msg" id="error-verification_code">請輸入驗證碼</div>
+                </div>
+
+                <div class="auth-form-group">
+                    <label class="auth-label">手機號碼 Phone</label>
+                    <input type="tel" name="phone" id="phone" class="auth-input" placeholder="09xxxxxxxx" maxlength="10">
+                    <div class="field-error-msg" id="error-phone">請輸入有效的手機號碼</div>
+                </div>
+
+                <div class="auth-form-group">
+                    <label class="auth-label">設定密碼 Password</label>
+                    <input type="password" name="password" id="password" class="auth-input" placeholder="至少 6 位數">
+                    <div class="field-error-msg" id="error-password">密碼長度需至少 6 個字元</div>
+                </div>
+
+                <div class="auth-form-group">
+                    <label class="auth-label">確認密碼 Confirm Password</label>
+                    <input type="password" name="confirm_password" id="confirm_password" class="auth-input" placeholder="請再次輸入密碼">
+                    <div class="field-error-msg" id="error-confirm">兩次密碼輸入不一致</div>
+                </div>
+
+                <button type="submit" class="btn-auth-submit">JOIN US</button>
+            </form>
+
+            <div class="auth-footer">
+                已經有帳號了嗎？ <a href="{{ url_for('login') }}">立即登入 Login</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        // ★★★ 發送驗證碼邏輯 (AJAX) ★★★
+        document.getElementById('sendCodeBtn').addEventListener('click', function() {
+            var email = document.getElementById('email').value;
+            var btn = document.getElementById('sendCodeBtn');
+            var feedback = document.getElementById('email-feedback');
+
+            // 簡單檢查 Email 格式
+            if (!email || !email.includes('@')) {
+                feedback.innerText = '請先輸入正確的 Email';
+                feedback.style.color = '#ff6b6b';
+                return;
+            }
+
+            // 鎖定按鈕，避免重複點擊
+            btn.disabled = true;
+            btn.innerText = '發送中...';
+            feedback.innerText = '';
+
+            // 發送請求給後端 app.py
+            fetch('/send_verification_code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: email }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    feedback.innerText = '驗證碼已發送至您的信箱，請查收！';
+                    feedback.style.color = '#4caf50'; // 綠色成功提示
+                    
+                    // 倒數計時 60 秒
+                    let timeLeft = 60;
+                    var timer = setInterval(function() {
+                        if (timeLeft <= 0) {
+                            clearInterval(timer);
+                            btn.disabled = false;
+                            btn.innerText = '發送驗證碼';
+                        } else {
+                            btn.innerText = timeLeft + 's 後重發';
+                            timeLeft -= 1;
+                        }
+                    }, 1000);
+
+                } else {
+                    // 發送失敗 (例如 Email 重複)
+                    feedback.innerText = data.message;
+                    feedback.style.color = '#ff6b6b'; // 紅色錯誤提示
+                    btn.disabled = false;
+                    btn.innerText = '發送驗證碼';
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                feedback.innerText = '系統錯誤，請稍後再試';
+                feedback.style.color = '#ff6b6b';
+                btn.disabled = false;
+                btn.innerText = '發送驗證碼';
+            });
+        });
+
+        // ★★★ 表單驗證邏輯 (原本的) ★★★
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('registerForm');
+            const inputs = {
+                name: document.getElementById('name'),
+                email: document.getElementById('email'),
+                phone: document.getElementById('phone'),
+                password: document.getElementById('password'),
+                confirm: document.getElementById('confirm_password'),
+                verification_code: document.getElementById('verification_code') // 加入驗證碼檢查
+            };
+
+            const validators = {
+                name: (val) => val.trim() !== '',
+                email: (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val),
+                phone: (val) => /^09\d{8}$/.test(val),
+                password: (val) => val.length >= 6,
+                confirm: (val) => val === inputs.password.value && val !== '',
+                verification_code: (val) => val.length === 6 // 檢查是否為 6 位數
+            };
+
+            function showError(inputKey, msg = null) {
+                const input = inputs[inputKey];
+                const errorDiv = document.getElementById('error-' + inputKey);
+                if(input && errorDiv){
+                    input.classList.add('error');
+                    errorDiv.classList.add('show');
+                    if(msg) errorDiv.innerText = msg;
+                }
+            }
+
+            function clearError(inputKey) {
+                const input = inputs[inputKey];
+                const errorDiv = document.getElementById('error-' + inputKey);
+                if(input && errorDiv){
+                    input.classList.remove('error');
+                    errorDiv.classList.remove('show');
+                }
+            }
+
+            // 綁定輸入事件 (即時清除紅字)
+            Object.keys(inputs).forEach(key => {
+                if(inputs[key]){
+                    inputs[key].addEventListener('input', () => {
+                        clearError(key);
+                        if (key === 'confirm' && inputs.confirm.value !== '') {
+                            // 確認密碼的特殊處理
+                        }
+                    });
+                    // 離開欄位時檢查
+                    inputs[key].addEventListener('blur', () => {
+                        if (inputs[key].value.trim() !== '') {
+                            if (!validators[key](inputs[key].value)) {
+                                showError(key);
+                            }
+                        }
+                    });
+                }
+            });
+
+            // 送出表單時的最終檢查
+            form.addEventListener('submit', function(e) {
+                let isValid = true;
+                Object.keys(inputs).forEach(key => {
+                     if (!validators[key](inputs[key].value)) {
+                        showError(key);
+                        isValid = false;
+                    }
+                });
+
+                if (!isValid) {
+                    e.preventDefault();
+                    // 錯誤時震動提示
+                    document.querySelector('.auth-card').animate([
+                        { transform: 'translateX(-5px)' },
+                        { transform: 'translateX(5px)' },
+                        { transform: 'translateX(0)' }
+                    ], { duration: 300 });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

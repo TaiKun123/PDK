@@ -1,18 +1,26 @@
 /* ==========================================================================
    目錄 (Table of Contents)
    --------------------------------------------------------------------------
-   1. 全域設定 (Global & Reset) ....... 基礎樣式、字體、手機滑動優化
-   2. 背景層 (Background Layer) ....... 固定大理石背景 (解決滑動卡頓)
-   3. 導覽列 (Navbar) ................. 頂部固定選單、Logo、購物車圖示
-   4. 側邊選單 (Side Menu) ............ 左側滑出的漢堡選單與遮罩
-   5. 首頁主視覺 (Hero Section) ....... 首頁大標題、副標題與入口按鈕
-   6. 分類與商品列表 (Category) ....... 商品分類頁容器、標題動畫
-   7. 商品卡片 (Product Cards) ........ 列表中的玻璃擬態卡片樣式
-   8. 購物車抽屜 (Cart Drawer) ........ 右側滑出的購物車與數量控制器
-   9. 快速瀏覽視窗 (Modal) ............ 商品快速預覽彈窗 (T字佈局)
-   10. 商品詳情頁 (PDP) ............... 單一商品頁面 (圖片、資訊、底部懸浮列)
-   11. 手機版響應式 (Mobile RWD) ...... 針對手機尺寸的排版調整
-   12. 結帳頁面專用樣式 (Checkout)
+   1.  全域設定 (Global & Reset) ......... 基礎樣式、字體、手機滑動優化
+   2.  背景層 (Background Layer) ......... 固定大理石背景 (解決滑動卡頓)
+   3.  導覽列 (Navbar) ................... 頂部固定選單、Logo、購物車圖示
+   4.  側邊選單 (Side Menu) .............. 左側滑出的漢堡選單與遮罩
+   5.  首頁主視覺 (Hero Section) ......... 首頁大標題、副標題與入口按鈕
+   6.  分類與商品列表 (Category) ......... 商品分類頁容器、標題動畫
+   7.  商品卡片 (Product Cards) .......... 列表中的玻璃擬態卡片樣式
+   8.  購物車抽屜 (Cart Drawer) .......... 右側滑出的購物車與數量控制器
+   9.  快速瀏覽視窗 (Modal) .............. 商品快速預覽彈窗 (T字佈局)
+   10. 商品詳情頁 (PDP) .................. 單一商品頁面 (圖片、資訊、底部懸浮列)
+   11. 手機版響應式 (Mobile RWD) ......... 針對手機尺寸的排版調整
+   12. 結帳頁面專用樣式 (Checkout) ....... 步驟條、表單、訂單確認區
+   13. 訂單完成頁 (Order Success) ........ 成功動畫、資訊卡片
+   14. 會員註冊與登入 (Auth Pages) ....... 登入/註冊表單、毛玻璃卡片
+   15. 表單驗證錯誤樣式 (Validation) ..... 紅色錯誤提示與輸入框變色
+   16. 層級修正 (Z-Index Fix) ............ 解決側邊選單被遮擋問題
+   17. 會員中心專用樣式 (Member Profile) . 黑白灰風格
+   18. 歷史訂單頁面 (Order History) ...... 列表與明細
+   19. 收藏愛心按鈕 (Wishlist Heart) ..... 右上角愛心狀態
+   20. Modal 樣式覆寫 (Specific Patch) ... 針對 #quickViewModal 的強制調整
    ========================================================================== */
 
 /* =========================================
@@ -38,7 +46,7 @@ html, body {
     color: var(--text-main);
     font-family: 'Helvetica Neue', Arial, sans-serif;
     
-    /* ★ 修改 1：背景改為透明，不然會擋住後面的背景圖 */
+    /* ★ 修改 1：背景改為透明，避免擋住後面的固定背景圖 */
     background-color: transparent; 
     
     /* 手機滑動體驗優化 */
@@ -52,15 +60,16 @@ html, body {
 a { text-decoration: none; color: inherit; }
 
 /* 統一字體設定 (Playfair Display - 襯線體) */
-/* 應用於：標題、Logo、按鈕文字 */
+/* 應用於：標題、Logo、按鈕文字等需要質感的元素 */
 h1, h2, h3, .logo, .hero-title, .btn-minimal, .page-title, 
-.card-info h3, .menu-section-title, .dropdown-btn, .side-menu a, .cart-title {
+.card-info h3, .menu-section-title, .dropdown-btn, .side-menu a, .cart-title,
+.auth-title, .btn-auth-submit, .btn-send-code, .success-title {
     font-family: 'Playfair Display', serif;
     font-weight: 500;
 }
 
 /* 禁止選取文字與雙擊縮放 (提升 APP 質感) */
-/* 應用於：按鈕、標題、選單開關 */
+/* 應用於：按鈕、標題、選單開關等互動元件 */
 button, .qty-btn, .cart-qty-btn, .action-btn, 
 .menu-toggle, .cart-wrapper, .card-action-btn, 
 .hero-title, .hero-subtitle {
@@ -97,13 +106,14 @@ input, textarea {
     
     pointer-events: none;
     
-    /* 請確認你的圖片路徑是否正確： static/css/style.css -> static/other_photos/圖片 */
+    /* 背景圖片設定 (含黑色遮罩) */
     background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), 
                 url('../other_photos/marble-Cco_KxWf.jpg');
     background-repeat: no-repeat;
     background-position: center center;
     background-size: cover;
 
+    /* 啟用硬體加速 */
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
     will-change: transform;
@@ -125,7 +135,8 @@ input, textarea {
     justify-content: space-between;
     align-items: center;
     position: fixed;
-    width: 100%; top: 0; z-index: 1000;
+    width: 100%; top: 0; 
+    z-index: 1000 !important; /* 強制層級，但在第16區塊會被修正 */
     transition: 0.3s;
 }
 
@@ -166,7 +177,7 @@ input, textarea {
     position: fixed; top: 0; left: 0;
     width: 100%; height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
-    z-index: 1500;
+    z-index: 1500 !important; /* 確保蓋住 Navbar */
     opacity: 0; visibility: hidden;
     transition: opacity 0.3s ease;
 }
@@ -175,7 +186,8 @@ input, textarea {
 /* 選單本體 (從左側滑出) */
 .side-menu {
     height: 100%; width: 0;
-    position: fixed; top: 0; left: 0; z-index: 2000;
+    position: fixed; top: 0; left: 0; 
+    z-index: 2000 !important; /* 最高層級 */
     background-color: rgba(10, 10, 10, 0.95);
     backdrop-filter: blur(10px);
     overflow-x: hidden;
@@ -190,6 +202,7 @@ input, textarea {
     background: none; border: none; width: 100%; text-align: left;
     cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05);
     transition: 0.3s; letter-spacing: 2px; text-transform: uppercase;
+    font-family: 'Playfair Display', serif;
 }
 .side-menu a:hover, .dropdown-btn:hover { color: #fff; background-color: rgba(255, 255, 255, 0.05); }
 
@@ -200,6 +213,17 @@ input, textarea {
 /* 選單分隔線與小標題 */
 .menu-section { margin-top: 30px; border-top: 1px solid rgba(255, 255, 255, 0.2); }
 .menu-section-title { padding: 30px 30px 10px 30px; font-size: 1.1rem; color: #fff; font-weight: bold; letter-spacing: 2px; }
+
+/* --- 會員選單專用樣式 (Member Sidebar) --- */
+
+/* 登入後的歡迎詞樣式 */
+.user-greeting {
+    color: #fff !important;        /* 強制白色 */
+    text-transform: none !important; /* 取消全大寫 (顯示原本的名字格式) */
+    font-size: 1.1rem;             /* 字體大小 */
+    letter-spacing: 1px;           /* 字距 */
+    padding-bottom: 10px;          /* 與下方連結的距離 */
+}
 
 
 /* =========================================
@@ -288,7 +312,7 @@ input, textarea {
 
 
 /* =========================================
-   7. 商品卡片 (Cards)
+   7. 商品卡片 (Product Cards)
    ========================================= */
 /* 玻璃擬態卡片本體 */
 .glass-card {
@@ -338,6 +362,7 @@ input, textarea {
 .card-action-btn:hover { background-color: #fff; }
 .card-action-btn:hover .action-icon { stroke: #000; }
 .card-action-btn:hover .action-icon circle { fill: #000; }
+
 
 /* =========================================
    8. 購物車抽屜 (Cart Drawer)
@@ -433,46 +458,225 @@ input, textarea {
 
 
 /* =========================================
-   10. 商品詳情頁 (PDP)
+   10. 商品詳情頁 (PDP) - 完整整理版
    ========================================= */
-/* PDP 頁面主容器 */
+
+/* --- 1. 頁面主容器與背景 --- */
 .pdp-wrapper {
-    width: 100%; max-width: 800px; margin: 0 auto;
-    padding-top: 80px; padding-bottom: 20px; color: #fff;
-    display: flex; flex-direction: column; align-items: center;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding-top: 80px;
+    padding-bottom: 20px;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
-/* 圖片輪播 Swiper */
-.swiper { width: 100%; max-width: 100%; aspect-ratio: 4/5; background: #000; }
-.swiper-slide { display: flex; justify-content: center; align-items: center; }
-.slide-content { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; object-fit: cover; }
+/* --- 2. 圖片輪播 Swiper --- */
+.swiper { 
+    width: 100%; 
+    max-width: 100%; 
+    aspect-ratio: 4/5; 
+    background: #000; 
+}
+.swiper-slide { 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+}
+.slide-content { 
+    width: 100%; 
+    height: 100%; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    font-size: 1.2rem; 
+    object-fit: cover; 
+}
 .swiper-pagination-bullet { background: #888 !important; opacity: 0.5; }
 .swiper-pagination-bullet-active { background: #fff !important; opacity: 1; }
 
-/* 商品資訊區塊 */
-.pdp-info-box { width: 100%; padding: 30px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; }
-.pdp-name { font-size: 1.6rem; margin: 0 0 10px 0; font-weight: 500; letter-spacing: 1px; }
-.pdp-price { font-size: 1.4rem; color: #fff; font-family: 'Times New Roman', serif; margin-bottom: 25px; }
-.pdp-desc { width: 100%; max-width: 500px; margin-top: 10px; font-size: 0.9rem; color: #aaa; line-height: 1.8; border-top: 1px solid #222; padding-top: 20px; text-align: center; }
+/* --- 3. 置中商品名稱區域 --- */
+.pdp-header-centered {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 30px; /* 與下方資訊區的距離 */
+}
 
-/* PDP 數量選擇器 */
-.qty-selector-group { margin-bottom: 25px; display: flex; flex-direction: column; align-items: center; }
-.qty-stepper { display: flex; align-items: center; background: #000; border: 1px solid #444; border-radius: 4px; width: 140px; height: 40px; overflow: hidden; }
-.qty-num { flex: 1.2; text-align: center; color: #fff; font-weight: bold; font-size: 1.1rem; border-left: 1px solid #333; border-right: 1px solid #333; background: #111; line-height: 40px; }
+.pdp-name {
+    font-size: 2rem;
+    font-weight: 600;
+    letter-spacing: 2px;
+    margin: 0 auto;
+    display: inline-block;
+}
 
-/* 底部懸浮按鈕列 (Fixed Bottom Bar) */
+/* --- 4. 資訊內容容器 (Flex 佈局) --- */
+.pdp-info-box { 
+    width: 100%; 
+    padding: 30px 20px; 
+    text-align: center; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+}
+
+.pdp-info-flex-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center; 
+    align-items: stretch;
+    gap: 40px;               /* 左右兩邊靠近的距離 */
+    width: 100%;
+    max-width: 700px;        /* 強制內容往中間靠 */
+    margin: 0 auto;
+}
+
+/* --- 5. 左側：購買資訊區 (價格/容量/數量) --- */
+.pdp-left-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center; /* 垂直居中對齊右側 */
+    text-align: center;
+    gap: 35px;               /* 價格、容量、數量間距 */
+    padding-top: 10px;
+}
+
+.pdp-price { 
+    font-size: 1.4rem; 
+    color: #fff; 
+    font-family: 'Times New Roman', serif; 
+    margin-bottom: 0;        /* 間距由 gap 控制 */
+}
+
+.pdp-volume-tag {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+    font-size: 1rem;
+    padding: 6px 16px;
+    border-radius: 4px;
+    letter-spacing: 1px;
+    font-family: 'Helvetica Neue', sans-serif;
+    backdrop-filter: blur(5px);
+}
+
+.qty-selector-group { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+}
+
+.qty-stepper { 
+    display: flex; 
+    align-items: center; 
+    background: #000; 
+    border: 1px solid #444; 
+    border-radius: 4px; 
+    width: 140px; 
+    height: 40px; 
+    overflow: hidden; 
+}
+
+.qty-num { 
+    flex: 1.2; 
+    text-align: center; 
+    color: #fff; 
+    font-weight: bold; 
+    font-size: 1.1rem; 
+    border-left: 1px solid #333; 
+    border-right: 1px solid #333; 
+    background: #111; 
+    line-height: 40px; 
+}
+
+/* --- 6. 中間垂直分隔線 --- */
+.pdp-vertical-divider {
+    width: 1px;
+    background: linear-gradient(to bottom, transparent, #444 15%, #444 85%, transparent);
+    margin: 0 10px;
+    flex-shrink: 0;
+    display: block !important;
+}
+
+/* --- 7. 右側：描述特色區 --- */
+.pdp-right-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start; 
+    text-align: center;
+    padding-top: 10px; 
+}
+
+.pdp-desc-label {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    color: #fff;
+    margin-bottom: 15px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(255,255,255,0.3);
+    padding-bottom: 5px;
+}
+
+.pdp-desc-text {
+    font-size: 0.95rem;
+    color: #ccc;
+    line-height: 1.8;
+    text-align: center;
+}
+
+/* --- 8. 底部懸浮按鈕列 --- */
 .fixed-bottom-bar {
     position: fixed; bottom: 20px; left: 5%; width: 90%; height: 70px;
     background: rgba(0, 0, 0, 0.95); border: 1px solid #333;
     display: flex; padding: 10px 15px; box-sizing: border-box; gap: 12px;
     z-index: 1000; border-radius: 40px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
-.action-btn { border: none; font-size: 0.9rem; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.2s; display: flex; justify-content: center; align-items: center; border-radius: 30px; }
-.btn-back { flex: 2; background: transparent; color: #888; border: 1px solid #444; }
-.btn-add { flex: 4; background: transparent; color: #fff; border: 1px solid #666; }
-.btn-checkout { flex: 4; background: #fff; color: #000; }
 
+.action-btn { 
+    border: none; font-size: 0.9rem; font-weight: bold; cursor: pointer; 
+    text-transform: uppercase; transition: 0.2s; display: flex; 
+    justify-content: center; align-items: center; border-radius: 30px; 
+}
 
+.btn-back { flex: 2.5; background: transparent; color: #888; border: 1px solid #444; }
+.btn-add { flex: 5; background: transparent; color: #fff; border: 1px solid #666; }
+.btn-wishlist-pdp { flex: 2.5; background: transparent; color: #888; border: 1px solid #444; font-size: 1.1rem; }
+.btn-wishlist-pdp.active { background: #fff; border-color: #fff; color: #000; }
+.btn-add:active{transform: scale(0.85);}
+/* --- 9. 手機版 RWD 適配 --- */
+@media (max-width: 768px) {
+    .pdp-header-centered {
+        margin-bottom: 20px;
+    }
+
+    .pdp-name { 
+        font-size: 1.6rem; 
+        margin-bottom: 25px;
+    }
+
+    .pdp-info-flex-container {
+        flex-direction: row; /* 維持左右排列 */
+        justify-content: space-between;
+        gap: 15px;
+    }
+    
+    .pdp-left-section, .pdp-right-section {
+        min-width: 40%;
+    }
+
+    .pdp-price { 
+        font-size: 1.5rem; 
+    }
+}
 /* =========================================
    11. 手機版響應式 (Mobile RWD)
    ========================================= */
@@ -514,6 +718,7 @@ input, textarea {
     .modal-desc { font-size: 0.75rem; max-height: 80px; }
 }
 
+
 /* =========================================
    12. 結帳頁面專用樣式 (Checkout)
    ========================================= */
@@ -546,7 +751,6 @@ input, textarea {
     align-items: center;
     margin-bottom: 20px;
     color: #666;
-    /* 字體大小微調 */
     font-size: 0.75rem; 
     letter-spacing: 1px;
 }
@@ -571,11 +775,11 @@ input, textarea {
     padding-bottom: 10px;
     letter-spacing: 1px;
 }
-.form-group { margin-bottom: 20px; }
-.form-label { display: block; color: #aaa; margin-bottom: 8px; font-size: 0.9rem; }
+.form-group { margin-bottom: 20px; text-align: left; }
+.form-label, label { display: block; color: #aaa; margin-bottom: 8px; font-size: 0.9rem; font-weight: bold; }
 
 /* 輸入框優化 (關鍵修正：防 iOS 放大) */
-.form-input {
+.form-input, input {
     width: 100%;
     padding: 12px 15px;
     min-height: 48px;   /* 增加高度，手指好點 */
@@ -588,7 +792,7 @@ input, textarea {
     font-size: 16px;    /* ★ iOS 防放大關鍵：字體必須 >= 16px */
     appearance: none;   /* 移除預設樣式 */
 }
-.form-input:focus { border-color: #fff; background: rgba(255,255,255,0.05); }
+.form-input:focus, input:focus { border-color: #fff; background: rgba(255,255,255,0.05); }
 
 /* 下拉選單箭頭優化 */
 select.form-input {
@@ -597,6 +801,10 @@ select.form-input {
     background-position: right 15px center;
     background-size: 16px;
     padding-right: 40px;
+}
+select.form-input option {
+    background-color: #1a1a1a; /* 深灰/黑色背景 */
+    color: #fff;               /* 白色文字 */
 }
 
 /* 表單兩欄排列 */
@@ -694,28 +902,6 @@ select.form-input {
     color: #fff; font-size: 1.3rem; font-weight: bold;
 }
 
-select.form-input option {
-    background-color: #1a1a1a; /* 深灰/黑色背景 */
-    color: #fff;               /* 白色文字 */
-}
-
-/* 修正瀏覽器自動填入 (Autofill) 黃色背景問題*/
-input:-webkit-autofill,
-input:-webkit-autofill:hover, 
-input:-webkit-autofill:focus, 
-input:-webkit-autofill:active {
-    /* 1. 強制將填入的文字顏色改成白色 */
-    -webkit-text-fill-color: #fff !important;
-    
-    /* 2. 利用超長的過渡時間，讓背景色「來不及」變成黃色，
-          這樣就會維持你原本設定的透明或深色背景 */
-    transition: background-color 9999s ease-in-out 0s;
-    
-    /* 3. 設定游標顏色為白色 (避免游標在黑色背景看不太到) */
-    caret-color: #fff;
-}
-
-
 /* --- 電腦版佈局調整 (Desktop) --- */
 @media (min-width: 992px) {
     .checkout-layout {
@@ -731,21 +917,34 @@ input:-webkit-autofill:active {
     .toggle-icon { display: none; }
 }
 
-/* =========================================
-   16. 訂單完成頁 (Order Success)
-   ========================================= */
 
+/* =========================================
+   13. 訂單完成頁 (Order Success)
+   ========================================= */
 .success-container {
-    max-width: 600px;
-    margin: 120px auto 50px auto;
-    padding: 40px 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
     text-align: center;
-    position: relative;
-    z-index: 2;
-    animation: fadeIn Up 0.8s ease-out;
+    padding-top: 120px;
 }
 
-/* --- 打勾動畫 (純 CSS) --- */
+.success-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 40px 30px;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: fadeInUp 0.8s ease-out;
+}
+
+/* --- 打勾動畫區塊 --- */
 .success-icon-box {
     width: 80px; height: 80px; margin: 0 auto 30px auto;
 }
@@ -754,7 +953,7 @@ input:-webkit-autofill:active {
     border-radius: 50%;
     display: block;
     stroke-width: 2;
-    stroke: #4caf50; /* 綠色勾勾 */
+    stroke: #4caf50;
     stroke-miterlimit: 10;
     box-shadow: inset 0px 0px 0px #4caf50;
     animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
@@ -774,242 +973,927 @@ input:-webkit-autofill:active {
     stroke-dashoffset: 48;
     animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
 }
-
 @keyframes stroke { 100% { stroke-dashoffset: 0; } }
 @keyframes scale { 0%, 100% { transform: none; } 50% { transform: scale3d(1.1, 1.1, 1); } }
 @keyframes fill { 100% { box-shadow: inset 0px 0px 0px 30px rgba(76, 175, 80, 0.1); } }
 
-/* --- 文字樣式 --- */
-.success-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 2.5rem;
-    color: #fff;
-    margin-bottom: 10px;
-    letter-spacing: 2px;
-}
-.success-subtitle {
-    color: #aaa;
-    font-size: 1rem;
-    margin-bottom: 40px;
+/* 文字與按鈕 */
+.success-title { font-size: 2rem; color: #fff; margin-bottom: 10px; }
+.success-subtitle { color: #aaa; font-size: 1rem; margin-bottom: 30px; }
+
+.order-info-row {
+    display: flex; justify-content: space-between; margin-bottom: 15px;
+    border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; color: #ddd;
 }
 
-/* --- 訂單資訊卡片 --- */
-.order-details-box {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 30px;
-    text-align: left;
-    margin-bottom: 40px;
+/* 付款說明區塊 */
+.payment-instruction-box {
+    background: rgba(255, 255, 255, 0.08);
+    border-left: 4px solid #3f3f3f; 
+    padding: 20px; margin-top: 25px; text-align: left;
+    border-radius: 4px; font-size: 0.95rem; line-height: 1.6; color: #eee;
 }
-.order-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 15px;
-    font-size: 1rem;
-    color: #ccc;
-}
-.order-id-text {
-    font-family: 'Times New Roman', serif;
-    color: #fff;
-    font-size: 1.1rem;
-    letter-spacing: 1px;
-}
-.divider {
-    height: 1px;
-    background: rgba(255,255,255,0.1);
-    margin: 20px 0;
-}
+.instruction-title { color: #dfdfdf; font-weight: bold; margin-bottom: 10px; font-size: 1.1rem; }
+.bank-code { font-family: monospace; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #fff; }
 
-/* --- 按鈕 --- */
-.btn-back-home {
-    display: inline-block;
-    padding: 12px 40px;
-    background: #fff;
-    color: #000;
-    text-decoration: none;
-    border-radius: 4px;
-    font-weight: bold;
-    letter-spacing: 1px;
-    transition: 0.3s;
+.btn-home {
+    margin-top: 30px; padding: 12px 40px; background: #fff; color: #000;
+    text-decoration: none; font-weight: bold; border-radius: 4px; display: inline-block; transition: 0.3s;
 }
-.btn-back-home:hover {
-    background: #e0e0e0;
-    transform: translateY(-2px);
-}
+.btn-home:hover { background: #ddd; }
 
-/* static/css/order-success.css */
 
-/* 訂單完成頁專用樣式 */
-.success-container {
+/* =========================================
+   14. 會員註冊與登入頁面 (Auth Pages)
+   ========================================= */
+
+/* --- 頁面主容器 --- */
+.auth-container {
     min-height: 100vh;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: 20px;
-    text-align: center;
+    position: relative;
+    z-index: 2; 
+    padding-top: 120px; /* 避開 navbar */
 }
 
-.success-card {
-    background: rgba(255, 255, 255, 0.05);
+/* --- 毛玻璃卡片 --- */
+.auth-card {
+    background: rgba(0, 0, 0, 0.65);
     backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 40px 30px;
-    border-radius: 12px;
+    padding: 40px;
     width: 100%;
-    max-width: 500px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    max-width: 420px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+    text-align: center;
+    animation: fadeInUp 0.8s ease-out;
+    border-radius: 8px;
 }
 
-.success-icon {
-    width: 60px; height: 60px;
-    border-radius: 50%;
-    border: 2px solid #4caf50;
-    color: #4caf50;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 30px;
-    margin: 0 auto 20px auto;
+/* --- 標題 --- */
+.auth-title {
+    font-size: 2rem; color: #fff; margin-bottom: 30px;
+    letter-spacing: 2px; text-transform: uppercase;
 }
 
-.order-info-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 15px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    padding-bottom: 15px;
-    color: #ddd;
+/* --- 表單群組 --- */
+.auth-form-group { margin-bottom: 20px; text-align: left; position: relative; }
+.auth-label { display: block; color: #aaa; font-size: 0.85rem; margin-bottom: 8px; letter-spacing: 1px; text-transform: uppercase; }
+
+/* --- 輸入框 (透明底線風格) --- */
+.auth-input {
+    width: 100%; background: transparent; border: none;
+    border-bottom: 1px solid #555; color: #fff;
+    padding: 10px 0; font-size: 1rem; transition: 0.3s;
+    border-radius: 0; appearance: none;
+}
+.auth-input:focus {
+    outline: none; border-bottom-color: #aaa;
+    background: rgba(255, 255, 255, 0.05);
 }
 
-/* ★ 重點：付款說明區塊 (紅色框框部分) */
-.payment-instruction-box {
-    background: rgba(255, 255, 255, 0.08);
-    border-left: 4px solid #3f3f3f; /* 金色邊框強調 */
-    padding: 20px;
-    margin-top: 25px;
-    text-align: left;
+/* ★★★ 修正瀏覽器自動填入 (Autofill) 背景與文字顏色 ★★★ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px #222 inset !important; /* 強制背景深色 */
+    -webkit-text-fill-color: #fff !important; /* 強制文字白色 */
+    transition: background-color 5000s ease-in-out 0s;
+    caret-color: #fff;
+}
+
+/* --- 錯誤訊息提示盒 --- */
+.alert-box {
+    background: rgba(220, 53, 69, 0.2);
+    color: #ff6b6b;
+    padding: 12px;
+    margin-bottom: 25px;
+    border: 1px solid #ff6b6b;
+    font-size: 0.9rem;
     border-radius: 4px;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    color: #eee;
-}
-
-.instruction-title {
-    color: #dfdfdf;
-    font-weight: bold;
-    margin-bottom: 10px;
-    font-size: 1.1rem;
-}
-
-.bank-code {
-    font-family: monospace;
-    background: rgba(0,0,0,0.3);
-    padding: 2px 6px;
-    border-radius: 4px;
-    color: #fff;
-}
-
-.btn-home {
-    margin-top: 30px;
-    padding: 12px 40px;
-    background: #fff;
-    color: #000;
-    text-decoration: none;
-    font-weight: bold;
-    border-radius: 4px;
-    display: inline-block;
-    transition: 0.3s;
-}
-
-.btn-home:hover { 
-    background: #ddd; 
-}
-
-/* 表單驗證樣式 */
-.form-group {
-    margin-bottom: 20px;
     text-align: left;
 }
 
-label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #333; /* 或您的網站文字顏色 */
+/* --- 送出按鈕 --- */
+.btn-auth-submit {
+    width: 100%; background: #fff; color: #000; border: none;
+    padding: 15px; font-size: 1rem; letter-spacing: 2px;
+    margin-top: 20px; cursor: pointer; transition: 0.3s;
+    font-weight: bold; text-transform: uppercase; border-radius: 4px;
+}
+.btn-auth-submit:hover {
+    background: #d6d6d6; transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
 }
 
-input {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 16px;
+/* --- 發送驗證碼按鈕 (垂直置中) --- */
+.btn-send-code {
+    position: absolute; right: 5px; top: 50%;
+    transform: translateY(-50%); /* 精準垂直置中 */
+    background: #fff; color: #000; border: 1px solid #555;
+    padding: 5px 12px; font-size: 0.8rem; cursor: pointer;
+    border-radius: 4px; transition: 0.3s; z-index: 5;
+    white-space: nowrap;
+}
+.btn-send-code:hover { background: #a9a9a9; color: #fff; border-color: #a3a3a3; }
+.btn-send-code:disabled { background: #555; color: #aaa; cursor: not-allowed; border-color: #555; }
+
+/* --- 底部連結區 --- */
+.auth-footer {
+    margin-top: 25px; color: #888; font-size: 0.9rem;
+    border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;
+}
+.auth-footer a {
+    color: #fff; text-decoration: none; border-bottom: 1px solid transparent;
+    transition: 0.3s; margin-left: 5px;
+}
+.auth-footer a:hover { border-bottom-color: #aaa; color: #aaa; }
+
+/* 手機版適配 */
+@media (max-width: 480px) {
+    .auth-card { padding: 30px 20px; background: rgba(0, 0, 0, 0.8); }
+    .auth-title { font-size: 1.8rem; }
 }
 
-/* 驗證錯誤時的樣式 */
-input.error {
-    border-color: #e74c3c;
-    background-color: #fce4e4;
+
+/* =========================================
+   15. 表單驗證錯誤樣式 (Form Validation)
+   ========================================= */
+
+/* 當輸入框有錯誤時，底線變紅色 */
+.auth-input.error {
+    border-bottom-color: #ff6b6b !important;
 }
 
 /* 錯誤訊息文字 */
-.error-msg {
-    color: #e74c3c;
-    font-size: 0.85rem;
-    margin-top: 5px;
-    display: none; /* 預設隱藏 */
+.field-error-msg {
+    color: #ff6b6b; font-size: 0.85rem; margin-top: 5px;
+    display: none; text-align: left; animation: fadeIn 0.3s ease;
 }
 
 /* 顯示錯誤訊息 */
-.error-msg.show {
+.field-error-msg.show { display: block; }
+
+
+/* =========================================
+   16. 層級修正 (Z-Index Fix)
+   ========================================= */
+
+/* 1. 導覽列層級維持 1000 */
+.navbar {
+    z-index: 1000 !important;
+}
+
+/* 2. ★★★ 關鍵修正：讓黑色遮罩比導覽列「更高」 ★★★ */
+/* 這樣選單打開時，購物車就會被遮罩蓋住，變成「不可點擊」 */
+.menu-overlay {
+    z-index: 1050 !important; 
+}
+
+/* 3. 選單本體要最高，才不會被遮罩蓋住 */
+.side-menu {
+    z-index: 1100 !important;
+}
+
+/* 4. 購物車抽屜 (因為它是後來滑出來的，給它最高層級) */
+.cart-drawer {
+    z-index: 2000 !important;
+}
+
+/* 結帳頁面表單驗證樣式 (Checkout Validation) - 原本混在層級區塊，現整合於此 */
+/* 錯誤訊息文字 - 預設隱藏 */
+.checkout-error-msg {
+    color: #ff6b6b;       /* 紅色警示 */
+    font-size: 0.85rem;   /* 字體小一點 */
+    margin-top: 5px;
+    display: none;        /* ★★★ 關鍵：預設不顯示！ ★★★ */
+    text-align: left;
+    animation: fadeIn 0.3s ease;
+}
+
+/* 當加上 .show 這個 class 時才顯示 */
+.checkout-error-msg.show {
     display: block;
 }
 
-
-.product-bg-1 {
-    /* background-image: url('../images/product-01.jpg'); */
+/* 輸入框錯誤時的紅框樣式 */
+.form-input.error {
+    border-color: #ff6b6b !important;
+    background: rgba(255, 107, 107, 0.1);
+}
+/* 預設錯誤樣式 (紅色) */
+.alert-box {
+    background: rgba(220, 53, 69, 0.9); /* 紅色背景 */
+    color: #fff;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.2);
 }
 
-.product-bg-2 {
-    /* background-image: url('../images/product-02.jpg'); */
+/* ★★★ 新增：成功樣式 (綠色) ★★★ */
+.alert-box.success {
+    background: rgba(40, 167, 69, 0.9) !important; /* 綠色背景 */
+    border-color: #28a745;
 }
 
-.product-bg-3 {
-    /* background-image: url('../images/product-03.jpg'); */
+/* ★★★ 新增：錯誤樣式 (確保它是紅的) ★★★ */
+.alert-box.error {
+    background: rgba(220, 53, 69, 0.9) !important;
 }
 
-.product-bg-4 {
-    /* background-image: url('../images/product-04.jpg'); */
+
+/* =========================================
+   17. 會員中心專用樣式 (Member Profile)
+   ========================================= */
+/* 黑白灰風格 */
+
+/* 容器與卡片：維持與首頁一致的毛玻璃質感，但去除金色邊框 */
+.profile-container {
+    max-width: 600px;
+    margin: 120px auto 50px;
+    padding: 20px;
 }
 
-.product-bg-5 {
-    /* background-image: url('../images/product-05.jpg'); */
+.profile-card {
+    background: rgba(0, 0, 0, 0.7); /* 深黑透明底 */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 40px;
+    border-radius: 4px; /* 稍微銳利一點的圓角 */
+    border: 1px solid rgba(255, 255, 255, 0.15); /* 銀灰邊框 */
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
-.product-bg-6 {
-    /* background-image: url('../images/product-06.jpg'); */
+/* 標題區：黑白風格 */
+.profile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 15px;
 }
 
-.product-bg-7 {
-    /* background-image: url('../images/product-07.jpg'); */
+.profile-title {
+    font-family: 'Playfair Display', serif; /* 維持首頁字體 */
+    font-size: 1.8rem;
+    letter-spacing: 2px;
+    color: #fff; /* 純白文字 */
+    text-transform: uppercase;
 }
 
-.product-bg-8 {
-    /* background-image: url('../images/product-08.jpg'); */
+/* ★★★ 修改重點：新版圓形鉛筆編輯圖示 ★★★ */
+.btn-edit-icon {
+    cursor: pointer;
+    width: 40px;           /* 設定固定寬高 */
+    height: 40px;
+    border-radius: 50%;    /* 變成圓形 */
+    display: flex;         /* 讓圖示置中 */
+    align-items: center;
+    justify-content: center;
+    color: #888;           /* 預設深灰色 */
+    border: 1px solid #444;/* 細微深灰邊框 */
+    background: rgba(0,0,0,0.5);
+    transition: all 0.3s ease;
 }
 
-.product-bg-9 {
-    /* background-image: url('../images/product-09.jpg'); */
+.btn-edit-icon i {
+    font-size: 1.1rem;     /* 圖示大小 */
 }
 
-.product-bg-10 {
-    /* background-image: url('../images/product-10.jpg'); */
+.btn-edit-icon:hover {
+    color: #fff;           /* 滑鼠移過去變白 */
+    border-color: #fff;    /* 邊框變白 */
+    background: rgba(255,255,255,0.1);
+    transform: rotate(15deg); /* 加一點點可愛的旋轉特效 */
 }
 
-.product-bg-11 {
-    /* background-image: url('../images/product-11.jpg'); */
+/* 手機版特別調整 (確保按鈕不會太大) */
+@media (max-width: 768px) {
+    .btn-edit-icon {
+        width: 35px;
+        height: 35px;
+    }
+    .btn-edit-icon i {
+        font-size: 1rem;
+    }
+}
+/* ★★★ 修改結束 ★★★ */
+
+
+/* 資料欄位 */
+.info-group {
+    margin-bottom: 25px;
 }
 
-.product-bg-12 {
-    /* background-image: url('../images/product-12.jpg'); */
+.info-label {
+    color: #888; /* 深灰標籤 */
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 5px;
+    font-weight: 600;
 }
+
+.info-value {
+    font-size: 1.1rem;
+    font-family: 'Playfair Display', serif; /* 數值維持襯線體質感 */
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+    color: #eee;
+    min-height: 28px;
+}
+
+/* 地址類型標籤 (顯示用) */
+.tag-badge {
+    display: inline-block;
+    border: 1px solid #fff;
+    color: #fff;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+/* --- 編輯彈窗 (Modal) 黑白風格 --- */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.9); /* 極深黑背景 */
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
+}
+
+.modal-box {
+    background: #0a0a0a; /* 純黑卡片 */
+    padding: 20px; /* 縮小內距 */
+    border-radius: 8px;
+    width: 90%;
+    max-width: 450px;
+    border: 1px solid #444;
+            
+            /* ★★★ 關鍵修改：讓彈窗不會超過螢幕高度，且可以滑動 ★★★ */
+    max-height: 85vh; /* 最大高度為螢幕的 85% */
+    overflow-y: auto; /* 超過高度時顯示捲軸 */
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-title {
+    color: #fff;
+    margin-bottom: 20px;
+    text-align: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    letter-spacing: 1px;
+}
+
+.modal-input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    background: #1a1a1a;
+    border: 1px solid #333; /* 深灰框 */
+    color: #fff;
+    outline: none;
+    font-size: 1rem;
+    transition: 0.3s;
+}
+
+.modal-input:focus {
+    border-color: #fff; /* 聚焦變白框 */
+}
+
+/* 地址切換按鈕 (Tab) */
+.address-switch {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border: 1px solid #333;
+}
+
+.switch-btn {
+    flex: 1;
+    padding: 12px;
+    background: #000;
+    color: #666;
+    cursor: pointer;
+    text-align: center;
+    font-size: 0.9rem;
+    transition: 0.3s;
+}
+
+.switch-btn.active {
+    background: #fff; /* 選中變白底 */
+    color: #000;      /* 黑字 */
+}
+
+/* 底部按鈕群 */
+.modal-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.btn-cancel {
+    flex: 1;
+    background: transparent;
+    border: 1px solid #444;
+    color: #888;
+    padding: 12px;
+    cursor: pointer;
+    transition: 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-cancel:hover {
+    border-color: #fff;
+    color: #fff;
+}
+
+.btn-save {
+    flex: 1;
+    background: #fff;
+    border: 1px solid #fff;
+    color: #000;
+    padding: 12px;
+    cursor: pointer;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: 0.3s;
+}
+
+.btn-save:hover {
+    background: #ccc;
+    border-color: #ccc;
+}
+
+
+/* =========================================
+   18. 歷史訂單頁面 (Order History)
+   ========================================= */
+/* 黑白灰風格 */
+
+.member-container {
+    max-width: 900px;
+    margin: 120px auto 50px;
+    padding: 20px;
+    color: #fff;
+}
+
+.page-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    border-bottom: 1px solid #333; /* 深灰底線 */
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+    letter-spacing: 1px;
+    text-align: center;
+}
+
+/* 訂單卡片外框 */
+.order-card {
+    background: #000;       /* 純黑背景 */
+    border: 1px solid #333; /* 深灰邊框 */
+    border-radius: 4px;
+    margin-bottom: 25px;
+    overflow: hidden;
+    transition: 0.3s;
+}
+
+.order-card:hover {
+    border-color: #666;     /* 滑過時邊框變亮一點 */
+}
+
+/* 卡片頭部 (訂單資訊) */
+.order-header {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03); /* 極淡的灰底區隔 */
+    border-bottom: 1px solid #222;
+}
+
+.order-info-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.order-no {
+    color: #fff;
+    font-weight: bold;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+
+.order-date {
+    color: #888; /* 灰色日期 */
+    font-size: 0.85rem;
+}
+
+/* 狀態標籤 (維持彩色，便於識別) */
+.order-status {
+    padding: 5px 12px;
+    border-radius: 2px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+.status-pending { background: #555; color: #fff; }       /* 待處理：改深灰比較搭 */
+.status-paid { background: #d4af37; color: #000; }       /* 已付款：金黃 */
+.status-shipped { background: #28a745; color: #fff; }    /* 已出貨：綠 */
+.status-done { background: #17a2b8; color: #fff; }       /* 已完成：藍 */
+.status-cancelled { background: #dc3545; color: #fff; }  /* 已取消：紅 */
+
+/* 卡片底部 (總金額 + 下拉按鈕) */
+.order-footer {
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.order-total {
+    font-size: 1.1rem;
+    color: #fff;
+    font-family: 'Times New Roman', serif;
+}
+
+/* 下拉按鈕樣式 */
+.btn-toggle-details {
+    background: transparent;
+    border: 1px solid #555;
+    color: #aaa;
+    padding: 8px 20px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-toggle-details:hover {
+    border-color: #fff;
+    color: #fff;
+}
+
+.btn-toggle-details i {
+    transition: transform 0.3s;
+}
+
+/* 當按鈕被加上 active class 時，箭頭旋轉 */
+.btn-toggle-details.active i {
+    transform: rotate(180deg);
+}
+
+/* --- 隱藏的商品明細區塊 --- */
+.order-details {
+    display: none; /* 預設隱藏 */
+    background: #111; /* 比卡片背景稍微淺一點的黑 */
+    border-top: 1px solid #333;
+    padding: 20px;
+    animation: fadeIn 0.3s ease;
+}
+
+.item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #222;
+}
+
+.item-row:last-child {
+    border-bottom: none;
+}
+
+.item-name {
+    color: #ddd;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+}
+
+.item-spec {
+    color: #666;
+    font-size: 0.8rem;
+}
+
+.item-price {
+    color: #fff;
+    font-family: 'Times New Roman', serif;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* 手機版適應 */
+@media (max-width: 768px) {
+    .order-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    .order-status {
+        align-self: flex-start;
+    }
+    .order-footer {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-end; /* 靠右對齊 */
+    }
+}
+
+
+/* =========================================
+   19. 收藏愛心按鈕 (Wishlist Heart) - 優化版
+   ========================================= */
+
+/* 商品卡片需要設為 relative，愛心才能絕對定位在右上角 */
+.product-card, .glass-card {
+    position: relative; 
+}
+
+/* 圓形框框 (預設：未收藏狀態) */
+.btn-wishlist {
+    position: absolute;
+    /* ★ 修改：更靠近角落 (原 15px) */
+    top: 10px;
+    right: 10px;
+    
+    /* ★ 修改：尺寸變小 (原 35px) */
+    width: 30px;
+    height: 30px;
+    
+    border-radius: 50%;
+    
+    /* 未收藏：半透明黑底 + 灰色邊框 */
+    background: rgba(0, 0, 0, 0.2); 
+    border: 1px solid #888;         
+    
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.3s ease;
+}
+
+/* 愛心圖示 (預設：淺灰色) */
+.btn-wishlist i {
+    color: #ccc; 
+    font-size: 0.9rem; /* ★ 修改：圖示稍微縮小以配合圓框 */
+    transition: all 0.3s;
+}
+
+/* 滑鼠移過去的效果 */
+.btn-wishlist:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #fff;
+}
+.btn-wishlist:hover i {
+    color: #fff;
+}
+
+/* ★★★ 已收藏狀態 (Active) - 改為深色風格 ★★★ */
+.btn-wishlist.active {
+    background: #fff;       /* 背景變「純白」 */
+    border-color: #fff;     /* 邊框變「純白」 */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3); /* 加一點陰影增加立體感 */
+}
+
+.btn-wishlist.active i {
+    color: #222;            /* ★ 愛心變「深黑色」 (對比白底非常明顯) ★ */
+    transform: scale(1.1);  /* 愛心稍微放大，更有確認感 */
+}
+
+
+/* =========================================
+   20. Modal 樣式覆寫 (Specific Patch)
+   ========================================= */
+/* 針對 #quickViewModal 的強制調整，縮減內距與優化排版 */
+
+/* 縮減視窗整體的內距 */
+#quickViewModal .modal-box, 
+#quickViewModal .modal-content {
+    padding: 20px !important; /* 縮小周圍留白 */
+    max-width: 90%; /* 手機版寬度 */
+    width: 400px;   /* 電腦版最大寬度 */
+}
+
+/* 縮小圖片高度 (這是省空間的關鍵) */
+#quickViewModal img {
+    max-height: 150px !important; /* 限制圖片高度 */
+    width: auto !important;
+    object-fit: contain;
+    margin: 0 auto 10px auto !important; /* 減少圖片下方留白 */
+    display: block;
+}
+
+/* 縮小文字標題與價格的間距 */
+#quickViewModal h2, 
+#quickViewModal h3 {
+    margin: 5px 0 !important;
+    font-size: 1.2rem !important;
+}
+
+#quickViewModal .price {
+    margin: 5px 0 10px 0 !important;
+    font-size: 1.1rem !important;
+}
+
+/* 縮小描述文字 */
+#quickViewModal p, 
+#quickViewModal .description {
+    margin-bottom: 15px !important;
+    font-size: 0.9rem !important;
+    line-height: 1.4;
+    color: #ccc;
+}
+
+/* 調整數量選擇器與按鈕的距離 */
+#quickViewModal .quantity-selector {
+    margin-bottom: 15px !important;
+}
+
+/* 確保關閉按鈕不會跑掉 */
+#quickViewModal .close-btn {
+    top: 10px !important;
+    right: 15px !important;
+}
+
+/* =========================================
+   Footer (頁尾) 樣式設計
+   ========================================= */
+
+.site-footer {
+    background-color: #0f0f0f; /* 極致深黑，比純黑更有層次 */
+    color: #ffffff;
+    padding: 60px 20px 40px; /* 上寬 下窄 */
+    text-align: center;
+    font-family: 'Playfair Display', sans-serif; /* 延續品牌字體 */
+    position: relative;
+    z-index: 10;
+    margin-top: 80px; /* 與上方內容保持足夠距離 */
+    border-top: 1px solid #333; /* 頂部加一條細微的深灰線，增加精緻感 */
+}
+
+/* 1. 品牌標題 */
+.footer-brand {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    margin-bottom: 30px;
+    color: #f0f0f0;
+    text-transform: uppercase; /* 強制大寫 */
+}
+
+/* 2. 導航連結區塊 */
+.footer-links {
+    margin-bottom: 30px;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap; /* 手機版自動換行 */
+    gap: 25px; /* 連結之間的間距 */
+}
+
+.footer-links a {
+    color: #aaaaaa; /* 預設淺灰色 */
+    text-decoration: none;
+    font-size: 1rem;
+    letter-spacing: 1px;
+    transition: color 0.3s ease, border-bottom 0.3s ease;
+    padding-bottom: 2px;
+    border-bottom: 1px solid transparent; /* 預留底線位置 */
+}
+
+.footer-links a:hover {
+    color: #ffffff; /* 滑鼠移過去變亮白 */
+    border-bottom: 1px solid #ffffff; /* 出現白色底線 */
+}
+
+/* 3. 社群圖示區塊 */
+.footer-social {
+    margin-bottom: 35px;
+}
+
+.footer-social a {
+    color: #ffffff;
+    font-size: 1.6rem; /* 圖示大小 */
+    margin: 0 18px; /* 圖示左右間距 */
+    transition: transform 0.3s ease, color 0.3s ease;
+    display: inline-block;
+}
+
+.footer-social a:hover {
+    color: #cccccc;
+}
+
+/* 4. 客服資訊區塊 */
+.footer-contact {
+    margin-bottom: 40px;
+    color: #888888; /* 資訊文字用深一點的灰，不搶視覺 */
+    font-size: 0.9rem;
+    line-height: 2; /* 行高拉大，閱讀舒適 */
+    letter-spacing: 1px;
+}
+
+.footer-contact p {
+    margin: 0;
+}
+
+/* 5. 安全認證區塊 */
+.footer-cert {
+    display: flex;
+    justify-content: center;
+    gap: 40px; /* 兩個認證標章的距離 */
+    align-items: center;
+    margin-bottom: 30px;
+    color: #666666; /* 認證圖示顏色低調 */
+}
+
+.cert-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: color 0.3s ease;
+}
+
+.cert-item:hover {
+    color: #ffffff; /* 滑鼠移過去會亮起來 */
+}
+
+.cert-item i {
+    font-size: 2rem;
+    margin-bottom: 8px;
+}
+
+.cert-item span {
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+/* 6. 版權聲明 */
+.footer-copyright {
+    font-size: 0.75rem;
+    color: #444444; /* 非常暗的灰，融入背景 */
+    letter-spacing: 1px;
+    margin-top: 20px;
+    border-top: 1px solid #222; /* 版權上方加一條極細的分隔線 */
+    padding-top: 20px;
+}
+
+/* --- 手機版響應式微調 --- */
+@media (max-width: 768px) {
+    .site-footer {
+        padding: 50px 15px 30px;
+    }
+    
+    .footer-brand {
+        font-size: 1.6rem;
+    }
+    
+    .footer-cert {
+        gap: 30px;
+    }
+}
+/* 1. 鎖定主頁面用的 class (給 JS 切換用) */
+body.no-scroll {
+    overflow: hidden !important; /* 強制隱藏卷軸 */
+    height: 100vh; /* 鎖定高度 */
+    touch-action: none; /* 禁止部分觸控行為 (選用) */
+}
+#mySidenav {
+    /* 確保選單內部自己可以滾動 */
+    overflow-y: auto; 
+    -webkit-overflow-scrolling: touch; /* iOS 慣性滾動 */
+    
+    /* ★ 關鍵：阻止滾動傳遞給底層 */
+    overscroll-behavior: contain; 
+}
+.locked-input {
+    width: 100%; padding: 12px 15px; min-height: 48px;
+    background: rgba(255,255,255,0.05); border: 1px solid #333;
+    color: #888; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;
+}
+.lock-icon { font-size: 0.9rem; }

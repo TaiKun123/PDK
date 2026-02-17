@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>隱私權條款 | P.D.K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 沿用政策頁面的樣式，確保視覺一致性 */
+        .policy-container {
+            max-width: 800px;
+            margin: 120px auto 50px;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+
+        .policy-card {
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 50px;
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .policy-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 40px;
+            letter-spacing: 2px;
+            color: #fff;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 20px;
+        }
+
+        .policy-section {
+            margin-bottom: 30px;
+        }
+
+        .policy-subtitle {
+            font-size: 1.1rem;
+            color: #fff;
+            margin-bottom: 15px;
+            font-weight: bold;
+            border-left: 3px solid #fff;
+            padding-left: 10px;
+            letter-spacing: 1px;
+        }
+
+        .policy-text {
+            font-size: 0.95rem;
+            line-height: 1.8;
+            color: #ccc;
+            text-align: justify;
+        }
+
+        .policy-text ul {
+            padding-left: 20px;
+            margin-top: 10px;
+        }
+
+        .policy-text li {
+            margin-bottom: 5px;
+        }
+
+        /* 手機版微調 */
+        @media (max-width: 768px) {
+            .policy-card { padding: 30px 20px; }
+            .policy-title { font-size: 1.6rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-fixed-layer"></div>
+
+    <nav class="navbar">
+        <div class="menu-toggle" onclick="openNav()">&#9776;</div>
+        <a href="/" class="logo">P  D  K</a>
+        
+        <div class="cart-wrapper" onclick="toggleCart()">
+            <svg class="cart-icon-svg" viewBox="0 0 24 24">
+                <path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/>
+                <circle cx="9" cy="20" r="1.5" fill="#fff"/>
+                <circle cx="17" cy="20" r="1.5" fill="#fff"/>
+            </svg>
+            <span class="cart-badge">0</span>
+        </div>
+    </nav>
+
+    {% include 'includes/sidebar.html' %}
+    {% include 'includes/cart_drawer.html' %}
+
+    <div class="policy-container">
+        <div class="policy-card">
+            <h1 class="policy-title">PRIVACY POLICY<br><span style="font-size: 1rem; letter-spacing: 5px; color: #888;">隱私權條款</span></h1>
+
+            <div class="policy-text" style="margin-bottom: 30px;">
+                P.D.K（以下簡稱「本網站」) 重視您在網路上的隱私權。為了讓您瞭解當您造訪我們的網站時，所享有關於個人資料（個人資料是指得以識別您的身分且未公開的資料，如姓名、地址、電子郵件地址或電話號碼）保護的權利，我們將逐項說明如下，若有任何意見或疑問，歡迎您與我們聯絡。
+            </div>
+
+            <div class="policy-section">
+                <div class="policy-subtitle">1. 隱私權政策適用範圍</div>
+                <div class="policy-text">
+                    隱私權政策適用於您使用本網站服務時所提供的個人資料。您經由本網站所提供的連結點選進入其他網站時，您在該網站中不適用本網站的隱私權保護政策。
+                </div>
+            </div>
+
+            <div class="policy-section">
+                <div class="policy-subtitle">2. 我們在何種情況下蒐集您的資料</div>
+                <div class="policy-text">
+                    本網站為了更準確的提供您服務或回覆您的問題，因而需要請您在下列情況下提供個人相關資料：
+                    <ul>
+                        <li>當您要加入本網站會員以獲得我們的會員服務時。</li>
+                        <li>當您要向本網站洽詢服務訊息時。</li>
+                        <li>當您要參加我們所舉辦的活動，並採取線上報名時。</li>
+                        <li>當您要向本網站索取服務時，不論該服務是有價或無價。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="policy-section">
+                <div class="policy-subtitle">3. 我們如何運用您所登錄的個人資料</div>
+                <div class="policy-text">
+                    我們所收集的個人資料，主要用途是使我們得以更準確的提供產品或服務給客戶、滿足客戶的需求、或通知客戶有關本網站最新的產品與服務。
+                    <br><br>
+                    我們亦可能為內部目的使用個人資料，例如：稽核、資料分析及研究等，以改進我們的產品、服務、網頁呈現方式、及與客戶的溝通管道。本網站在未經您同意前，絕不會將您所登錄的個人資訊揭露、租借或轉售給第三者，或是將您的資料使用於未事先告知您的其他用途。
+                </div>
+            </div>
+
+            <div class="policy-section">
+                <div class="policy-subtitle">4. 關於您個人資料的修改與刪除</div>
+                <div class="policy-text">
+                    當您在本網站註冊成為會員後，您可以隨時利用您的 Email 和密碼登入「我的帳號 (MEMBER)」頁面更改您的個人資料，以確保其正確性。
+                </div>
+            </div>
+
+            <div class="policy-section">
+                <div class="policy-subtitle">5. 我們何時必須將您的資訊揭露</div>
+                <div class="policy-text">
+                    本網站不會在未經您同意的狀況下向任何人或公司出售或出借您的個人資料。但在某些情況下會有例外。這些狀況包括（但不限於）：
+                    <ul>
+                        <li>當您在本網站的行為已違反本網站的服務條款，或可能損害或妨礙本網站權益，或您的行為已導致任何人遭受損害，只要我們相信揭露您的個人資料是為了辨識、聯絡或採取法律行動所必要者。</li>
+                        <li>司法單位或其他有權機關因公眾安全，要求本網站公開特定個人資料時，本網站將視司法單位合法正式的程序，以及對本網站所有使用者安全考量下做可能必要的配合時。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="policy-section">
+                <div class="policy-subtitle">6. 關於 Cookie 的使用</div>
+                <div class="policy-text">
+                    本網站有可能在您的電腦設定並取用本網站 Cookies，以提供貼心便利的各項服務。Cookie 是網站伺服器用來和使用者瀏覽器進行溝通的一種技術，它可能在使用者的電腦中儲存某些資訊，但是使用者可以經由瀏覽器的設定，取消或限制此項功能，此項功能的取消將會造成您不能正常使用本網站的部份主要功能。
+                </div>
+            </div>
+
+            <div class="policy-section">
+                <div class="policy-subtitle">7. 帳號及個人資料隱私保護</div>
+                <div class="policy-text">
+                    為保障您的隱私及安全，您的帳號資料會用密碼保護。當您要編輯會員資料等部分擁有個人資料及隱私頁面時，本網站會要求您輸入帳號識別資料確認身分。
+                    <br><br>
+                    為確保您的帳號及個人資料安全無虞，本網站除了致力推廣各項安全機制外，同時也請您務必要定期更新您的作業系統並注意防毒。
+                </div>
+            </div>
+
+            <div class="policy-section">
+                <div class="policy-subtitle">8. 隱私權條款的修改</div>
+                <div class="policy-text">
+                    由於科技發展的迅速，相關法規訂定未臻完備，以及未來可能難以預見的環境變遷等因素，本網站將會視需要修改我們在網站上所提供的隱私權說明，以落實保障您隱私權之立意。當我們完成隱私權條款修改時，我們會立即將其刊登於本網站中，以醒目標示提醒您閱讀。
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function openNav() {
+            var sidenav = document.getElementById("mySidenav");
+            if(sidenav) sidenav.style.width = "280px"; 
+            var overlay = document.getElementById("menuOverlay");
+            if(overlay) overlay.classList.add("show");
+        }
+    </script>
+</body>
+</html>

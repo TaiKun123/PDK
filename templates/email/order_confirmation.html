@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: sans-serif; color: #333; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 5px; }
+        .header { background-color: #000; color: #fff; padding: 10px; text-align: center; }
+        .details { margin-top: 20px; }
+        .total { font-size: 1.2rem; font-weight: bold; color: #d4af37; margin-top: 10px; }
+        .footer { margin-top: 30px; font-size: 0.8rem; color: #777; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>P.D.K 訂單確認</h2>
+        </div>
+        <div class="details">
+            <p>親愛的 {{ order.customer_name }} 您好，</p>
+            <p>感謝您的訂購！我們已收到您的訂單，將盡快為您安排出貨。</p>
+            
+            <hr>
+            <p><b>訂單編號：</b>{{ order.order_no }}</p>
+            <p><b>訂購日期：</b>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            <p><b>付款方式：</b>{{ order.payment_method }}</p>
+            <p><b>配送方式：</b>{{ order.shipping_method }}</p>
+            <p><b>收件地址：</b>{{ order.address }}</p>
+            
+            <h3>購買明細：</h3>
+            <ul>
+                {% for item in items %}
+                <li>
+                    {{ item.name }} x {{ item.qty }} 
+                    - NT$ {{ item.price * item.qty }}
+                </li>
+                {% endfor %}
+            </ul>
+            
+            <div class="total">
+                實付金額：NT$ {{ order.final_total }}
+            </div>
+        </div>
+        <div class="footer">
+            <p>此信件為系統自動發送，請勿直接回信。</p>
+            <p>如有問題請聯繫官方 LINE 或客服信箱。</p>
+        </div>
+    </div>
+</body>
+</html>

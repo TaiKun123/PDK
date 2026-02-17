@@ -3,44 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P.D.K 訂單管理系統</title>
+    <title>訂單管理 | P.D.K Admin</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
 
     <nav class="admin-navbar">
-        <div class="navbar-brand">
-            <i class="fas fa-box-open"></i> P.D.K Admin
-        </div>
-        
-        <form class="navbar-search" action="/admin/orders" method="GET">
-            <input type="text" name="q" placeholder="搜尋訂單編號、姓名或電話..." value="{{ search_query }}">
-            <button type="submit"><i class="fas fa-search"></i></button>
-        </form>
+        <div class="layout-container navbar-content">
+            <div class="navbar-brand">
+                <i class="fas fa-box-open"></i> P.D.K Admin
+            </div>
+            
+            <form class="navbar-search" action="/admin/orders" method="GET">
+                <input type="text" name="q" placeholder="搜尋訂單編號、姓名..." value="{{ search_query }}">
+                <button type="submit"><i class="fas fa-search"></i></button>
+            </form>
 
-        <div class="navbar-actions">
-            <a href="/" target="_blank" class="nav-link"><i class="fas fa-external-link-alt"></i> 前往前台</a>
-            <a href="/admin/logout" class="nav-link text-danger"><i class="fas fa-sign-out-alt"></i> 登出</a>
+            <div class="navbar-actions">
+                <a href="/" target="_blank" class="nav-link"><i class="fas fa-external-link-alt"></i> 前往前台</a>
+                <a href="/admin/logout" class="nav-link text-danger"><i class="fas fa-sign-out-alt"></i> 登出</a>
+            </div>
         </div>
     </nav>
 
-    <div class="admin-layout">
+    <div class="admin-layout layout-container">
         
         <aside class="admin-sidebar">
             <div class="sidebar-menu">
-                
-                <a href="{{ url_for('admin_products') }}" class="menu-item" style="border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px; padding-bottom: 15px;">
-                    <span style="color: #e4e4e4; font-weight: bold;"><i class="fas fa-tags"></i> 商品管理</span>
+                <a href="{{ url_for('admin_orders') }}" class="menu-item active">
+                    <span><i class="fas fa-list"></i> 訂單管理</span>
                 </a>
 
+                <a href="{{ url_for('admin_products') }}" class="menu-item">
+                    <span><i class="fas fa-tags"></i> 商品管理</span>
+                </a>
+
+                <a href="{{ url_for('admin_coupons') }}" class="menu-item">
+                    <span><i class="fas fa-ticket-alt"></i> 優惠碼管理</span>
+                </a>
+
+                <a href="{{ url_for('admin_vouchers') }}" class="menu-item">
+                    <span><i class="fas fa-percent"></i> 折扣券設定</span>
+                </a>
+
+                <a href="{{ url_for('send_birthday_vouchers') }}" class="menu-item" onclick="return confirm('確定要立即檢查並發送本月生日禮金嗎？');">
+                    <span style="color: #d4af37;"><i class="fas fa-birthday-cake"></i> 派發生日禮金</span>
+                </a>
+            </div>
+
+            <div style="margin-top: 20px; border-top: 1px solid #222; padding-top: 10px;">
+                <div style="padding: 10px 25px; color: #666; font-size: 0.8rem; letter-spacing: 1px;">訂單狀態</div>
+                
                 <a href="{{ url_for('admin_orders', status='all') }}" class="menu-item {% if status_filter == 'all' %}active{% endif %}">
-                    <span><i class="fas fa-list"></i> 全部訂單</span>
+                    <span>全部訂單</span>
                     <span class="badge-count">{{ dashboard.cnt_all }}</span>
                 </a>
                 
                 <a href="{{ url_for('admin_orders', status='pending') }}" class="menu-item {% if status_filter == 'pending' %}active{% endif %}">
-                    <span><i class="fas fa-clock"></i> 未付款</span>
+                    <span>未付款</span>
                     {% if dashboard.cnt_pending > 0 %}
                     <span class="badge-count active">{{ dashboard.cnt_pending }}</span>
                     {% else %}
@@ -49,7 +70,7 @@
                 </a>
                 
                 <a href="{{ url_for('admin_orders', status='paid') }}" class="menu-item {% if status_filter == 'paid' %}active{% endif %}">
-                    <span><i class="fas fa-money-bill-wave"></i> 已付款待出貨</span>
+                    <span>已付款待出貨</span>
                     {% if dashboard.cnt_paid > 0 %}
                     <span class="badge-count active">{{ dashboard.cnt_paid }}</span>
                     {% else %}
@@ -58,17 +79,17 @@
                 </a>
                 
                 <a href="{{ url_for('admin_orders', status='shipped') }}" class="menu-item {% if status_filter == 'shipped' %}active{% endif %}">
-                    <span><i class="fas fa-shipping-fast"></i> 已出貨</span>
+                    <span>已出貨</span>
                     <span class="badge-count">{{ dashboard.cnt_shipped }}</span>
                 </a>
                 
                 <a href="{{ url_for('admin_orders', status='done') }}" class="menu-item {% if status_filter == 'done' %}active{% endif %}">
-                    <span><i class="fas fa-check-circle"></i> 已完成</span>
+                    <span>已完成</span>
                     <span class="badge-count">{{ dashboard.cnt_done }}</span>
                 </a>
-                
+
                 <a href="{{ url_for('admin_orders', status='cancelled') }}" class="menu-item {% if status_filter == 'cancelled' %}active{% endif %}">
-                    <span><i class="fas fa-times-circle"></i> 已取消</span>
+                    <span>已取消</span>
                     <span class="badge-count">{{ dashboard.cnt_cancelled }}</span>
                 </a>
             </div>
@@ -128,7 +149,7 @@
                                 <div class="font-bold">{{ order.customer_name }}</div>
                                 <div class="text-sm text-gray">{{ order.customer_phone }}</div>
                             </td>
-                            <td class="text-gold font-bold">NT$ {{ order.total_amount }}</td>
+                            <td class="text-gold font-bold">NT$ {{ order.final_total }}</td>
                             
                             <td class="text-gold font-bold">
                                 {{ order.payment_method }}

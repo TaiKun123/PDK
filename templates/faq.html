@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>常見問題 | P.D.K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* ★ 2. 標題區域：套用與 Contact 頁面完全相同的 CSS */
+        .page-header-section {
+            text-align: center;
+            margin-top: 100px;     /* 距離頂部導覽列，與 Contact 一致 */
+            margin-bottom: 30px;   /* 標題與下方內容的間距 */
+            padding: 0 20px;
+        }
+
+        .page-title-text {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            color: #fff;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .page-divider {
+            width: 100%;
+            max-width: 800px;      /* 配合 FAQ 內容寬度 */
+            height: 1px;
+            background: rgba(255, 255, 255, 0.3);
+            margin: 0 auto;
+        }
+
+        /* FAQ 內容容器 */
+        .faq-container {
+            max-width: 800px;
+            margin: 0 auto 50px;   /* 上方邊距由 header 負責，這裡設為 0 */
+            padding: 20px;
+            color: #fff;
+        }
+
+        /* 分類標題 */
+        .faq-category-title {
+            font-size: 1.2rem;
+            color: #ccc;           /* 稍微調亮一點 */
+            margin: 10px 0 20px 0; /* 調整間距 */
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border-left: 3px solid #fff;
+            padding-left: 15px;
+            font-family: 'Playfair Display', serif; /* 增加質感 */
+        }
+
+        /* 手風琴項目 */
+        .faq-item {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 15px;
+            border-radius: 4px;
+            overflow: hidden;
+            transition: 0.3s;
+        }
+
+        /* 問題 (可點擊區域) */
+        .faq-question {
+            padding: 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+            transition: 0.3s;
+        }
+
+        .faq-question:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .faq-question.active {
+            background: #fff;
+            color: #000;
+            font-weight: bold;
+        }
+
+        /* 加號/減號圖示 */
+        .faq-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+        
+        .faq-question.active .faq-icon {
+            transform: rotate(45deg); /* 變成 X */
+        }
+
+        /* 答案區域 (預設隱藏) */
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .faq-answer p {
+            padding: 20px;
+            margin: 0;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #ccc;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .faq-answer a {
+            color: #fff;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-fixed-layer"></div>
+
+    <nav class="navbar">
+        <div class="menu-toggle" onclick="openNav()">&#9776;</div>
+        <a href="/" class="logo">P  D  K</a>
+        <div class="cart-wrapper" onclick="toggleCart()">
+            <svg class="cart-icon-svg" viewBox="0 0 24 24">
+                <path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/>
+                <circle cx="9" cy="20" r="1.5" fill="#fff"/>
+                <circle cx="17" cy="20" r="1.5" fill="#fff"/>
+            </svg>
+            <span class="cart-badge">0</span>
+        </div>
+    </nav>
+
+    {% include 'includes/sidebar.html' %}
+    {% include 'includes/cart_drawer.html' %}
+
+    <div class="page-header-section">
+        <h1 class="page-title-text">- F.A.Q -</h1>
+        <div class="page-divider"></div>
+    </div>
+
+    <div class="faq-container">
+
+        <div class="faq-category-title">1. PRODUCT 產品相關</div>
+        
+        <div class="faq-item">
+            <div class="faq-question">
+                如何選擇適合我的洗髮精？
+                <i class="fas fa-plus faq-icon"></i>
+            </div>
+            <div class="faq-answer">
+                <p>請根據您的頭皮與髮質狀況選擇：<br><br>
+                ● <strong>油性/頭皮屑</strong>：建議使用「淨屑舒活」或「淨化控油調理」系列。<br><br>
+                ● <strong>染燙受損</strong>：建議使用「極致燙染修復」系列，幫助鎖色與修護。<br><br>
+                ● <strong>乾燥/細軟髮</strong>：建議使用「翅藻植翠」或「輕柔活力」系列，增加蓬鬆感與保濕。<br><br>
+                頭皮檢測功能開發中,敬請期待</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                孕婦或孩童可以使用嗎？
+                <i class="fas fa-plus faq-icon"></i>
+            </div>
+            <div class="faq-answer">
+                <p>P.D.K 全系列產品皆採用溫和低敏配方，不含重金屬與環境荷爾蒙。<br><br>孕婦以及 3 歲以上的孩童皆可安心使用。特殊過敏體質或 3 歲以下孩童，建議先諮詢醫師。</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                產品保存說明
+                <i class="fas fa-plus faq-icon"></i>
+            </div>
+            <div class="faq-answer">
+                <p>請置於陰涼處避免陽光直射。<br><br>開封後建議於 6-12 個月內使用完畢，以確保植萃成分的最佳活性與香氣。</p>
+            </div>
+        </div>
+
+        <div class="faq-category-title">2. SHOPPING 購物配送</div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                運費計算與免運門檻
+                <i class="fas fa-plus faq-icon"></i>
+            </div>
+            <div class="faq-answer">
+                <p>● <strong>宅配運費</strong>：NT$ 100。<br><br>
+                ● <strong>超商取貨</strong>：NT$ 40。<br><br>
+                ● <strong>免運優惠</strong>：單筆訂單消費滿 NT$ 2,000 即享免運。</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                出貨時間與配送天數
+                <i class="fas fa-plus faq-icon"></i>
+            </div>
+            <div class="faq-answer">
+                <p>商品將於確認收款後 1-3 天內出貨(包含假日)。<br><br>
+                ● 宅配：出貨後約 1-2 天送達。<br><br>
+                ● 超商取貨：出貨後約 2-3 天送達指定門市。<br><br>
+                春節和重大節日除外(車流堵塞)</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                付款方式說明
+                <i class="fas fa-plus faq-icon"></i>
+            </div>
+            <div class="faq-answer">
+                <p>學生創業,目前無信用卡付費,望各位海涵<br>
+                目前提供以下付款方式：<br><br>
+                1. LINE PAY<br>
+                2. ATM 網路銀行轉帳<br>
+                3. 街口<br><br>
+                付款流程再以結帳畫面操作,謝謝你們
+                </p>
+            </div>
+        </div>
+        <div class="faq-category-title">3. DISCOUNT優惠與折扣</div>
+        <div class="faq-item">
+            <div class="faq-question">
+                優惠碼使用方式
+                <i class="fas fa-plus faq-icon"></i>
+            </div>
+            <div class="faq-answer">
+                <p>請於結帳頁面的「折扣專區」，點擊找到「優惠代碼」欄位，輸入代碼後點擊確認，系統將自動計算折扣金額。<br><br>
+                    ● 優惠碼只會在LINE和IG不定時發放<br>
+                    ● 一次訂單支援一張優惠碼
+                </p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                折扣券使用方式和限制
+                <i class="fas fa-plus faq-icon"></i>
+            </div>
+            <div class="faq-answer">
+                <p>請於結帳頁面的「折扣專區」，點擊找到「我的折扣券」欄位，選擇您要使用的折扣券，系統將自動計算折扣金額。<br><br>
+                    ● 商品金額1,500元內，最多折扣' 300 '元<br>
+                    ● 1,500元以上最多折扣' 600 '元<br>
+                    ● 可和優惠碼疊加使用
+                </p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                推薦代碼
+                <i class="fas fa-plus faq-icon"></i>
+            </div>
+            <div class="faq-answer">
+                <p>請於結帳頁面的「折扣專區」，點擊找到「推薦代碼」欄位，輸入代碼後點擊確認，系統將自動計算折扣金額。<br><br>
+                    ● 推薦代碼一個會員只能使用一次<br>
+                </p>
+            </div>
+        </div>
+        <div class="faq-category-title">4. ACCOUNT & SERVICE 會員與售後</div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                如何修改訂單內容？
+                <i class="fas fa-plus faq-icon"></i>
+            </div>
+            <div class="faq-answer">
+                <p>若訂單狀態為「待處理 (Pending)」，請立即透過 電話 , LINE , Email 聯繫客服協助修改。<br><br>若狀態已顯示為「已出貨 (Shipped)」，則無法進行修改。</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                如何查詢訂單狀態？
+                <i class="fas fa-plus faq-icon"></i>
+            </div>
+            <div class="faq-answer">
+                <p>請點擊網站左上角選單中的「MY ORDERS」或「訂單查詢」。<br><br>登入會員後即可查看所有歷史訂單詳情與目前的物流進度。</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                忘記密碼怎麼辦？
+                <i class="fas fa-plus faq-icon"></i>
+            </div>
+            <div class="faq-answer">
+                <p>請於登入頁面點擊「忘記密碼」，輸入您註冊時的 Email，系統將發送驗證碼至您的信箱，協助您重設新密碼。</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question">
+                退換貨流程簡述
+                <i class="fas fa-plus faq-icon"></i>
+            </div>
+            <div class="faq-answer">
+                <p>我們提供 7 天鑑賞期服務。若需辦理退換貨，請確保商品為全新未拆封狀態。<br><br>
+                詳細規範請參考：<a href="{{ url_for('return_policy') }}">退換貨政策</a>。</p>
+            </div>
+        </div>
+
+    </div>
+    <footer class="site-footer">
+        <div class="footer-brand">PDK OFFICE</div>
+
+        <div class="footer-links">
+            <a href="/about">關於我們</a>
+            <a href="{{ url_for('return_policy') }}">退換貨政策</a>
+            <a href="{{ url_for('privacy') }}">隱私條款</a>
+        </div>
+
+        <div class="footer-social">
+            <a href="https://www.facebook.com/share/17xiC5DsRL/?mibextid=wwXIfr" target="_blank" title="Facebook"><i class="fab fa-facebook-f"></i></a>
+            <a href="https://www.instagram.com/pdk.aesthetic?igsh=MWpqZDh0eXowNnl2Yw%3D%3D&utm_source=qr" target="_blank" title="Instagram"><i class="fab fa-instagram"></i></a>
+            <a href="https://lin.ee/lDgmkDVf" target="_blank" title="LINE"><i class="fab fa-line"></i></a>
+        </div>
+
+        <div class="footer-contact">
+            <p>客服電話: 0960901252</p>
+            <p>客服信箱: pdk.service.office@gmail.com</p>
+            <p>客服時間: am10:00-pm22:00</p>
+        </div>
+
+        <div class="footer-cert">
+            <div class="cert-item">
+                <i class="fas fa-shield-halved"></i>
+                <span>責任險認證</span>
+            </div>
+            <div class="cert-item">
+                <i class="fas fa-certificate"></i>
+                <span>ISO 9001</span>
+            </div>
+        </div>
+        
+        <div style="margin-top: 30px; font-size: 0.8rem; color: #555;">
+            &copy; 2026 PDK. All Rights Reserved.
+        </div>
+    </footer>
+
+    <script>
+        function openNav() {
+            var sidenav = document.getElementById("mySidenav");
+            if(sidenav) sidenav.style.width = "280px"; 
+            var overlay = document.getElementById("menuOverlay");
+            if(overlay) overlay.classList.add("show");
+        }
+
+        // 手風琴互動邏輯
+        const questions = document.querySelectorAll('.faq-question');
+
+        questions.forEach(question => {
+            question.addEventListener('click', () => {
+                // 1. 切換 active 樣式
+                question.classList.toggle('active');
+
+                // 2. 控制答案區域的高度
+                const answer = question.nextElementSibling;
+                
+                if (question.classList.contains('active')) {
+                    // 展開：設為內容的實際高度
+                    answer.style.maxHeight = answer.scrollHeight + "px";
+                } else {
+                    // 收合：設為 0
+                    answer.style.maxHeight = 0;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

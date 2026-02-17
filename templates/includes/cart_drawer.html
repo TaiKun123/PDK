@@ -50,7 +50,6 @@
 
 <script>
     // 1. 初始化資料
-    // 使用 let 確保全域可存取
     let cart = JSON.parse(localStorage.getItem('pdk_cart')) || [];
     let modalQty = 1; 
     let currentProduct = {};
@@ -58,22 +57,32 @@
     // 2. 載入完成更新畫面
     document.addEventListener('DOMContentLoaded', function() {
         updateCartUI();
-        // 如果一進入頁面就想看到購物車內容，可以解除註解下行
-        // renderCartItems(); 
     });
 
     // --- 功能 A: 小視窗邏輯 ---
-    function openQuickView(id, name, price, desc) {
-        currentProduct = { id: id, name: name, price: price };
+    function openQuickView(id, name, price, desc, imgSrc) { // ★★★ 參數新增 imgSrc
+        currentProduct = { id: id, name: name, price: price, img: imgSrc }; // ★★★ 儲存圖片路徑
         modalQty = 1; 
         document.getElementById('modalTitle').innerText = name;
         document.getElementById('modalPrice').innerText = 'NT$ ' + price.toLocaleString();
-        document.getElementById('modalDesc').innerText = desc || "頂級沙龍專用配方，深層滋養您的秀髮。";
+        document.getElementById('modalDesc').innerHTML = desc || "頂級沙龍專用配方，深層滋養您的秀髮。"; // 改用 innerHTML 支援換行
         document.getElementById('modalQtyDisplay').innerText = modalQty;
 
         let imgDiv = document.getElementById('modalImg');
         imgDiv.className = 'modal-img'; 
-        imgDiv.classList.add('product-bg-' + id);
+        
+        // ★★★ 修改圖片顯示邏輯：優先使用傳入的圖片路徑 ★★★
+        if (imgSrc && imgSrc.trim() !== '') {
+             // 如果有圖片路徑 (從後台來的)，直接設定背景圖
+             imgDiv.style.backgroundImage = `url('${imgSrc}')`;
+             imgDiv.style.backgroundSize = 'cover';
+             imgDiv.style.backgroundPosition = 'center';
+        } else {
+             // 如果沒有，退回使用 CSS class
+             imgDiv.style.backgroundImage = '';
+             imgDiv.classList.add('product-bg-' + id);
+        }
+        
         document.getElementById('quickViewModal').classList.add('show');
     }
 
@@ -97,6 +106,7 @@
                 id: currentProduct.id,
                 name: currentProduct.name,
                 price: currentProduct.price,
+                img: currentProduct.img, // ★★★ 儲存圖片到購物車
                 qty: modalQty
             });
         }
@@ -133,19 +143,44 @@
         renderCartItems();
     }
 
-    // --- 功能 D: 購物車開關 ---
+// --- 功能 D: 購物車開關 (修正版) ---
     function toggleCart() {
         var drawer = document.getElementById('cartDrawer');
-        var overlay = document.getElementById('menuOverlay');
+        var overlay = document.getElementById('menuOverlay'); 
         
+        // ★★★ 新增：取得側邊選單 ★★★
+        var sideMenu = document.getElementById("mySidenav");
+
         if (drawer.style.right === '0px') {
+            // --- 情況 1：關閉購物車 ---
             drawer.style.right = '-400px';
-            if(overlay) overlay.classList.remove('show');
+            
+            // 隱藏遮罩
+            if(overlay) {
+                overlay.classList.remove('show');
+                // ★ 關鍵：關閉購物車後，把遮罩的點擊事件還給「關閉側選單」
+                // 雖然遮罩藏起來了，但這樣下次打開側選單時才不會錯亂
+                overlay.onclick = function() { closeNav(); }; 
+            }
         } else {
+            // --- 情況 2：打開購物車 ---
+            
+            // ★★★ 關鍵修正：如果側邊選單是開著的，強制先關閉它！ ★★★
+            if (sideMenu && sideMenu.style.width === "280px") {
+                sideMenu.style.width = "0";
+                // 注意：這裡不用隱藏 overlay，因為購物車馬上就要用它
+            }
+
+            // 打開購物車
             drawer.style.right = '0px';
+            
+            // 設定遮罩
             if(overlay) {
                 overlay.classList.add('show');
-                overlay.onclick = function() { toggleCart(); }; 
+                // 讓點擊遮罩變成「關閉購物車」
+                overlay.onclick = function() { 
+                    toggleCart(); 
+                }; 
             }
             renderCartItems(); 
         }
@@ -170,7 +205,6 @@
         let cartBody = document.getElementById('cartBody');
         if (!cartBody) return;
 
-        // 每次渲染前，確保變數跟 localStorage 同步
         cart = JSON.parse(localStorage.getItem('pdk_cart')) || [];
         
         if (cart.length === 0) {
@@ -180,13 +214,25 @@
 
         let html = '';
         cart.forEach(item => {
+            // ★★★ 購物車列表圖片邏輯修改 ★★★
+            let imgStyle = '';
+            let bgClass = '';
+            
+            if (item.img && item.img.trim() !== '') {
+                // 如果有儲存圖片路徑 (從後台來的)
+                imgStyle = `background-image: url('${item.img}');`;
+            } else {
+                // 如果沒有，使用 CSS class
+                bgClass = `product-bg-${item.id}`;
+            }
+
             let decreaseBtnHtml = (item.qty > 1) 
                 ? `<div class="cart-qty-btn" onclick="changeCartItemQty('${item.id}', -1)">-</div>`
                 : `<div class="cart-qty-btn" onclick="removeFromCart('${item.id}')" style="font-size:0.8rem; color:#aaa;">✕</div>`;
 
             html += `
             <div class="cart-item" style="display:flex; margin-bottom:20px; text-align:left; border-bottom:1px solid #333; padding-bottom:15px;">
-                <div class="product-bg-${item.id}" style="width:70px; height:70px; background-size:cover; background-position:center; margin-right:15px; border-radius:4px; flex-shrink:0;"></div>
+                <div class="${bgClass}" style="width:70px; height:70px; background-size:cover; background-position:center; margin-right:15px; border-radius:4px; flex-shrink:0; ${imgStyle}"></div>
                 
                 <div style="flex:1;">
                     <div style="color:#fff; font-size:0.9rem; margin-bottom:5px;">${item.name}</div>
@@ -208,19 +254,14 @@
         cartBody.innerHTML = html;
     }
 
-    // ★★★ 重要：新增全域接口，供 sh_001.html 等單品頁呼叫 ★★★
+    // 全域更新接口
     window.externalCartUpdate = function() {
-        // 1. 強制從 localStorage 更新變數
         cart = JSON.parse(localStorage.getItem('pdk_cart')) || [];
-        // 2. 更新紅點數字與總金額
         updateCartUI();
-        // 3. 重新畫出側邊欄列表內容
         renderCartItems();
     };
-    // --- 功能 E: 處理瀏覽器「返回」鍵快取問題 ---
-    // 當頁面顯示時（包含從快取中讀取的「返回」動作），強制同步購物車數據
+
     window.addEventListener('pageshow', function(event) {
-        // 呼叫你寫好的全域更新接口
         if (typeof window.externalCartUpdate === 'function') {
             window.externalCartUpdate();
         }

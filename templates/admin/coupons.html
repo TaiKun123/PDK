@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>優惠券管理 | P.D.K Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+
+    <nav class="admin-navbar">
+        <div class="layout-container navbar-content">
+            <div class="navbar-brand"><i class="fas fa-box-open"></i> P.D.K Admin</div>
+            <div class="navbar-actions">
+                <a href="/" target="_blank" class="nav-link"><i class="fas fa-external-link-alt"></i> 前往前台</a>
+                <a href="/admin/logout" class="nav-link text-danger"><i class="fas fa-sign-out-alt"></i> 登出</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="admin-layout layout-container">
+        
+        <aside class="admin-sidebar">
+            <div class="sidebar-menu">
+                <a href="{{ url_for('admin_orders') }}" class="menu-item">
+                    <span><i class="fas fa-list"></i> 訂單管理</span>
+                </a>
+
+                <a href="{{ url_for('admin_products') }}" class="menu-item">
+                    <span><i class="fas fa-tags"></i> 商品管理</span>
+                </a>
+
+                <a href="{{ url_for('admin_coupons') }}" class="menu-item active">
+                    <span><i class="fas fa-ticket-alt"></i> 優惠碼管理</span>
+                </a>
+
+                <a href="{{ url_for('admin_vouchers') }}" class="menu-item">
+                    <span><i class="fas fa-percent"></i> 折扣券設定</span>
+                </a>
+
+                <a href="{{ url_for('send_birthday_vouchers') }}" class="menu-item" onclick="return confirm('確定要立即檢查並發送本月生日禮金嗎？');">
+                    <span style="color: #d4af37;"><i class="fas fa-birthday-cake"></i> 派發生日禮金</span>
+                </a>
+            </div>
+        </aside>
+
+        <main class="admin-content">
+            
+            <div class="card-header header-actions">
+                <h2>優惠碼列表 (Coupons)</h2>
+                <a href="{{ url_for('admin_coupon_edit') }}" class="btn-complete btn-create">
+                    <i class="fas fa-plus"></i> 新增優惠券
+                </a>
+            </div>
+
+            <div class="card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>代碼</th>
+                            <th>名稱</th>
+                            <th>折扣內容</th>
+                            <th>門檻</th>
+                            <th>使用期限</th>
+                            <th>已用/上限</th>
+                            <th>狀態</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in coupons %}
+                        <tr>
+                            <td class="font-mono" style="color: #00ff88; font-weight: bold;">{{ c.code }}</td>
+                            <td class="bold">{{ c.name }}</td>
+                            <td>
+                                {% if c.discount_type == 'fixed' %}
+                                    <span style="color: #ffcc00;">折抵 ${{ c.discount_value }}</span>
+                                {% else %}
+                                    <span style="color: #ffcc00;">打 {{ 100 - c.discount_value }} 折 ({{ c.discount_value }}% off)</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-sm text-gray">滿 ${{ c.min_spend }}</td>
+                            <td class="text-sm text-gray">
+                                {{ c.start_date.strftime('%Y/%m/%d') }} <br>
+                                ~ {{ c.end_date.strftime('%Y/%m/%d') if c.end_date else '永久有效' }}
+                            </td>
+                            <td>
+                                {{ c.used_count }} / {{ c.usage_limit }}
+                                <div class="text-sm text-gray">
+                                    {% if c.per_user_limit == 0 %}不限/人{% else %}每人限 {{ c.per_user_limit }} 次{% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if c.is_active %}
+                                    <span class="status-badge status-done">啟用中</span>
+                                {% else %}
+                                    <span class="status-badge status-cancelled">已停用</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="action-group">
+                                    <a href="{{ url_for('admin_coupon_edit', coupon_id=c.id) }}" class="btn-detail" title="編輯">編輯</a>
+                                    
+                                    <form action="{{ url_for('delete_coupon') }}" method="POST" onsubmit="return confirm('確定要刪除此優惠券嗎？');">
+                                        <input type="hidden" name="coupon_id" value="{{ c.id }}">
+                                        <button type="submit" class="btn-icon btn-delete btn-sm-icon" title="刪除"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="empty-state">目前沒有優惠券</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #333; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px; }
+        .header { background-color: #1e1e1e; color: #fff; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { padding: 20px; text-align: center; }
+        .btn { display: inline-block; background: #000; color: #fff; padding: 12px 25px; text-decoration: none; border-radius: 4px; margin-top: 20px; }
+        .footer { text-align: center; font-size: 0.8rem; color: #aaa; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>商品已出貨！</h2>
+        </div>
+        <div class="content">
+            <p>親愛的 {{ order.customer_name }} 您好，</p>
+            <p>好消息！您的訂單 <strong>{{ order.order_no }}</strong> 已經出貨了。</p>
+            <p>商品預計將在 2-3 個工作天內送達，請您留意收件或取貨簡訊。</p>
+            
+            <a href="{{ url_for('member', _external=True) }}" class="btn">追蹤訂單</a>
+        </div>
+        <div class="footer">
+            <p>感謝您對 P.D.K 的支持。</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>聯絡我們 | P.D.K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 標題區域 */
+        .page-header-section {
+            text-align: center;
+            margin-top: 100px;
+            /* ★ 修改 1：間距縮到最小 */
+            margin-bottom: 10px;   
+            padding: 0 20px;
+        }
+
+        .page-title-text {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            color: #fff;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .page-divider {
+            width: 100%;
+            max-width: 900px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.3);
+            margin: 0 auto;
+        }
+
+        /* 內容容器 */
+        .contact-container {
+            max-width: 1000px;
+            margin: 0 auto 50px;
+            /* ★ 修改 1：上方內距歸零，讓內容往上貼 */
+            padding: 0 20px 20px 20px; 
+            display: flex;
+            gap: 50px;
+            flex-wrap: wrap; 
+        }
+
+        /* 左側：資訊區 (維持靠左) */
+        .contact-info {
+            flex: 1;
+            min-width: 300px;
+            color: #fff;
+            text-align: left; /* 維持靠左 */
+            padding-top: 0;   /* 確保沒有多餘間距 */
+        }
+
+        .contact-desc {
+            color: #aaa;
+            line-height: 1.8;
+            margin-bottom: 40px;
+            font-size: 1rem;
+            text-align: left;
+            /* 增加一點上方間距，避免文字直接黏在分隔線上，若想更近可設為 10px */
+            margin-top: 20px; 
+        }
+
+        /* 資訊項目 (維持靠左排列) */
+        .info-item {
+            margin-bottom: 30px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start; /* 維持靠左 */
+            gap: 20px;
+        }
+
+        .info-icon {
+            color: #fff;
+            font-size: 1.5rem;
+            width: 30px;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+        }
+
+        .info-content h4 {
+            margin: 0 0 5px 0;
+            font-size: 0.9rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: normal;
+        }
+
+        .info-content p {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #e0e0e0;
+            font-family: sans-serif;
+            letter-spacing: 1px;
+        }
+
+        /* ★ 修改 2：社群圖示改為置中 */
+        .social-group {
+            display: flex;
+            justify-content: center; /* 改為置中 */
+            gap: 25px;
+            margin-top: 50px;
+        }
+
+        .social-btn {
+            width: 60px;
+            height: 60px;
+            border: 1px solid #888;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            text-decoration: none;
+            transition: 0.3s;
+            font-size: 1.8rem;
+        }
+
+        .social-btn:hover {
+            background-color: #fff;
+            color: #000;
+            border-color: #fff;
+            transform: translateY(-3px);
+        }
+
+        /* 右側：表單區 */
+        .contact-form-card {
+            flex: 1.2;
+            min-width: 320px;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 4px;
+            /* 讓表單區塊稍微往下，與左側文字對齊視覺重心 (可選) */
+            margin-top: 20px; 
+        }
+
+        .form-header {
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 15px;
+            color: #fff;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+
+        .contact-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #444;
+            color: #fff;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            outline: none;
+            transition: 0.3s;
+            font-size: 1rem;
+            border-radius: 2px;
+            box-sizing: border-box;
+        }
+
+        .contact-input:focus {
+            border-color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        textarea.contact-input {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .btn-send {
+            width: 100%;
+            background: #fff;
+            color: #000;
+            border: none;
+            padding: 15px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+            margin-top: 10px;
+        }
+
+        .btn-send:hover {
+            background: #d6d6d6;
+        }
+
+        @media (max-width: 768px) {
+            .contact-container { 
+                flex-direction: column; 
+                gap: 40px; 
+                margin-top: 0px; 
+            }
+            .contact-form-card { 
+                padding: 30px 20px; 
+                width: 100%; 
+                margin-top: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-fixed-layer"></div>
+
+    <nav class="navbar">
+        <div class="menu-toggle" onclick="openNav()">&#9776;</div>
+        <a href="/" class="logo">P  D  K</a>
+        <div class="cart-wrapper" onclick="toggleCart()">
+            <svg class="cart-icon-svg" viewBox="0 0 24 24">
+                <path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/>
+                <circle cx="9" cy="20" r="1.5" fill="#fff"/>
+                <circle cx="17" cy="20" r="1.5" fill="#fff"/>
+            </svg>
+            <span class="cart-badge">0</span>
+        </div>
+    </nav>
+
+    {% include 'includes/sidebar.html' %}
+    {% include 'includes/cart_drawer.html' %}
+
+    <div class="page-header-section">
+        <h1 class="page-title-text">- CONTACT -</h1>
+        <div class="page-divider"></div>
+    </div>
+
+    <div class="contact-container">
+        
+        <div class="contact-info">
+            <p class="contact-desc">
+                無論是產品諮詢、訂單問題，或是異業合作提案，<br>
+                P.D.K 團隊隨時準備為您服務。
+            </p>
+
+            <div class="info-item">
+                <div class="info-icon"><i class="fas fa-phone-alt"></i></div>
+                <div class="info-content">
+                    <h4>Phone</h4>
+                    <p>0960-901-252</p>
+                </div>
+            </div>
+
+            <div class="info-item">
+                <div class="info-icon"><i class="far fa-envelope"></i></div>
+                <div class="info-content">
+                    <h4>Email</h4>
+                    <p>pdk.service.office@gmail.com</p>
+                </div>
+            </div>
+
+            <div class="info-item">
+                <div class="info-icon"><i class="far fa-clock"></i></div>
+                <div class="info-content">
+                    <h4>Service Hours</h4>
+                    <p>Mon - Sun : 10:00 - 22:00</p>
+                </div>
+            </div>
+
+            <div class="social-group">
+                <a href="https://www.facebook.com/share/17xiC5DsRL/?mibextid=wwXIfr" target="_blank" class="social-btn" title="Facebook">
+                    <i class="fab fa-facebook-f"></i>
+                </a>
+                <a href="https://www.instagram.com/pdk.aesthetic?igsh=MWpqZDh0eXowNnl2Yw%3D%3D&utm_source=qr" target="_blank" class="social-btn" title="Instagram">
+                    <i class="fab fa-instagram"></i>
+                </a>
+                <a href="https://lin.ee/lDgmkDVf" target="_blank" class="social-btn" title="LINE">
+                    <i class="fab fa-line"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="contact-form-card">
+            <div class="form-header">SEND A MESSAGE</div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert-box {{ category }}" style="margin-bottom: 20px;">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST">
+                <input type="text" name="name" class="contact-input" placeholder="您的姓名 Name" required>
+                <input type="email" name="email" class="contact-input" placeholder="電子信箱 Email" required>
+                
+                <select name="subject" class="contact-input" style="background-image: none;">
+                    <option value="產品諮詢" style="color: #000;">產品諮詢 Product Inquiry</option>
+                    <option value="訂單問題" style="color: #000;">訂單問題 Order Issue</option>
+                    <option value="退換貨申請" style="color: #000;">退換貨申請 Return & Exchange</option>
+                    <option value="異業合作" style="color: #000;">異業合作 Partnership</option>
+                    <option value="其他" style="color: #000;">其他 Other</option>
+                </select>
+
+                <textarea name="message" class="contact-input" placeholder="請輸入您的訊息..." required></textarea>
+
+                <button type="submit" class="btn-send">發送訊息 SEND MESSAGE</button>
+            </form>
+        </div>
+
+    </div>
+
+    <script>
+        function openNav() {
+            var sidenav = document.getElementById("mySidenav");
+            if(sidenav) sidenav.style.width = "280px"; 
+            var overlay = document.getElementById("menuOverlay");
+            if(overlay) overlay.classList.add("show");
+        }
+    </script>
+</body>
+</html>

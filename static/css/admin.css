@@ -400,6 +400,9 @@ tr:hover { background-color: var(--hover-bg); }
     padding: 5px 15px;
     font-size: 0.85rem;
     border-radius: 4px;
+    white-space: nowrap;  /* 強制文字不換行 */
+    min-width: 60px;      /* 確保有足夠寬度 */
+    text-align: center;   /* 文字置中 */
 }
 .btn-detail:hover { background: var(--text-main); color: #000; }
 
@@ -773,6 +776,6 @@ textarea:focus {
         /* 選中時的亮燈效果 */
         .submenu-link.active {
             color: #b5b5b5;
-            background: rgba(212, 175, 55, 0.05);
+            background: rgba(176, 176, 176, 0.05);
             border-left-color: #b8b8b8;
         }

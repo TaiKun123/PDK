@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>編輯優惠券 | P.D.K Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background: #111; color: #ddd; }
+        .container { max-width: 600px; margin: 50px auto; padding: 40px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; }
+        h2 { text-align: center; color: #fff; margin-bottom: 30px; }
+        
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #aaa; }
+        input[type="text"], input[type="number"], input[type="datetime-local"], select {
+            width: 100%; padding: 10px; background: #000; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box;
+        }
+        input:focus, select:focus { border-color: #fff; outline: none; }
+        
+        .row { display: flex; gap: 20px; }
+        .col { flex: 1; }
+        
+        .btn-submit { width: 100%; padding: 12px; background: #fff; color: #000; border: none; font-weight: bold; cursor: pointer; margin-top: 20px; border-radius: 4px; }
+        .btn-submit:hover { background: #ccc; }
+        .btn-cancel { display: block; text-align: center; margin-top: 15px; color: #888; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>{% if coupon %}編輯{% else %}新增{% endif %}優惠券</h2>
+        
+        <form method="POST">
+            <div class="row">
+                <div class="col form-group">
+                    <label>優惠碼 (Code) *</label>
+                    <input type="text" name="code" placeholder="例: VIP888" value="{{ coupon.code if coupon else '' }}" required style="text-transform: uppercase;">
+                </div>
+                <div class="col form-group">
+                    <label>優惠名稱 *</label>
+                    <input type="text" name="name" placeholder="例: 新客首購禮" value="{{ coupon.name if coupon else '' }}" required>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col form-group">
+                    <label>折扣類型</label>
+                    <select name="discount_type" id="typeSelect" onchange="updateHint()">
+                        <option value="fixed" {% if coupon and coupon.discount_type == 'fixed' %}selected{% endif %}>折抵現金 (NT$)</option>
+                        <option value="percent" {% if coupon and coupon.discount_type == 'percent' %}selected{% endif %}>打折 (%)</option>
+                    </select>
+                </div>
+                <div class="col form-group">
+                    <label>折扣數值 *</label>
+                    <input type="number" name="discount_value" id="valInput" value="{{ coupon.discount_value if coupon else '' }}" required>
+                    <small id="valHint" style="color: #888; font-size: 0.8rem;">輸入 100 代表折抵 100 元</small>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>最低消費門檻 (0 為不限)</label>
+                <input type="number" name="min_spend" value="{{ coupon.min_spend if coupon else 0 }}">
+            </div>
+
+            <div class="row">
+                <div class="col form-group">
+                    <label>總發行數量</label>
+                    <input type="number" name="usage_limit" value="{{ coupon.usage_limit if coupon else 999999 }}">
+                </div>
+                <div class="col form-group">
+                    <label>每人限用次數 (0 為不限)</label>
+                    <input type="number" name="per_user_limit" value="{{ coupon.per_user_limit if coupon else 1 }}">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col form-group">
+                    <label>開始時間</label>
+                    <input type="datetime-local" name="start_date" value="{{ coupon.start_date.strftime('%Y-%m-%dT%H:%M') if coupon else '' }}">
+                </div>
+                <div class="col form-group">
+                    <label>結束時間 (留空為永久)</label>
+                    <input type="datetime-local" name="end_date" value="{{ coupon.end_date.strftime('%Y-%m-%dT%H:%M') if coupon and coupon.end_date else '' }}">
+                </div>
+            </div>
+
+            <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                <input type="checkbox" name="is_active" id="activeCheck" style="width: auto;" {% if not coupon or coupon.is_active %}checked{% endif %}>
+                <label for="activeCheck" style="margin: 0; cursor: pointer;">啟用此優惠券</label>
+            </div>
+
+            <button type="submit" class="btn-submit">儲存設定</button>
+            <a href="/admin/coupons" class="btn-cancel">取消返回</a>
+        </form>
+    </div>
+
+    <script>
+        function updateHint() {
+            const type = document.getElementById('typeSelect').value;
+            const hint = document.getElementById('valHint');
+            if(type === 'fixed') {
+                hint.innerText = "輸入 100 代表折抵 100 元";
+            } else {
+                hint.innerText = "輸入 10 代表 10% off (打9折)";
+            }
+        }
+        // 初始化執行一次
+        updateHint();
+    </script>
+</body>
+</html>

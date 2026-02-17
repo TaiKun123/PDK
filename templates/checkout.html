@@ -6,6 +6,147 @@
     <title>Check | P.D.K</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* =========================================
+           P.D.K 折扣專區樣式 (維持原樣)
+           ========================================= */
+        .discount-zone-container {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px; margin-bottom: 30px; overflow: hidden; transition: all 0.3s;
+        }
+        .discount-header {
+            padding: 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            background: transparent; border-bottom: 1px solid transparent; transition: all 0.3s;
+        }
+        .discount-header:hover, .discount-header.active {
+            background: rgba(255, 255, 255, 0.02); border-bottom-color: rgba(255, 255, 255, 0.1);
+        }
+        .dh-left { display: flex; align-items: center; color: #fff; }
+        .dh-right { display: flex; align-items: center; color: #aaa; }
+        .dh-arrow { transition: transform 0.3s; color: #888; }
+        .discount-header.active .dh-arrow { transform: rotate(180deg); }
+        .dh-summary-green { color: #4caf50 !important; font-weight: bold; }
+
+        .discount-body { padding: 25px 20px; background: transparent; }
+        .dz-section { margin-bottom: 30px; }
+        .dz-section:last-child { margin-bottom: 0; }
+        .dz-label { display: block; color: #aaa; margin-bottom: 12px; font-size: 0.9rem; font-weight: bold; letter-spacing: 1px; }
+        .dz-input-group { display: flex; gap: 10px; }
+        .dz-msg { font-size: 0.85rem; margin-top: 8px; min-height: 20px; letter-spacing: 0.5px; color: #aaa; }
+        .dz-msg.success { color: #4caf50; }
+        .dz-msg.error { color: #ff5252; }
+
+        .btn-minimal {
+            padding: 0 25px; height: 48px; background: transparent; border: 1px solid #444; color: #aaa;
+            border-radius: 4px; cursor: pointer; white-space: nowrap; transition: 0.3s; font-size: 0.95rem;
+        }
+        .btn-minimal:hover { border-color: #fff; color: #fff; background: rgba(255,255,255,0.05); }
+
+        .voucher-selector-box {
+            width: 100%; min-height: 48px; padding: 0 15px; display: flex; justify-content: space-between; align-items: center;
+            background: transparent; border: 1px solid #444; border-radius: 4px; color: #fff; cursor: pointer; transition: 0.3s;
+        }
+        .voucher-selector-box:hover { border-color: #fff; background: rgba(255,255,255,0.05); }
+        .vs-text { font-size: 16px; color: #aaa; display: flex; align-items: center; gap: 10px; }
+        .vs-text.has-selected { color: #fff; font-weight: bold; }
+        .vs-arrow { color: #aaa; font-family: monospace; }
+        .vs-badge { background: #4caf50; color: #fff; font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
+
+        /* Modal */
+        .pdk-modal {
+            display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px); align-items: center; justify-content: center;
+        }
+        .pdk-modal-content {
+            background-color: #1a1a1a; border: 1px solid #444; width: 90%; max-width: 500px; border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; max-height: 85vh; color: #fff;
+        }
+        .pdk-modal-header { padding: 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .pdk-modal-header h4 { margin: 0; font-size: 1.1rem; letter-spacing: 1px; color: #fff; }
+        .close-modal { font-size: 1.8rem; color: #aaa; cursor: pointer; line-height: 1; }
+        .close-modal:hover { color: #fff; }
+        .pdk-modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+        .v-section-title { font-size: 0.95rem; color: #fff; margin-bottom: 15px; font-weight: bold; border-left: 3px solid #4caf50; padding-left: 10px; letter-spacing: 1px; }
+        .v-limit-hint {
+            font-size: 0.9rem; background: rgba(76, 175, 80, 0.1); color: #4caf50; padding: 12px 15px;
+            border-radius: 4px; margin-bottom: 20px; border: 1px solid rgba(76, 175, 80, 0.3); display: flex; justify-content: space-between; align-items: center;
+        }
+        .voucher-item {
+            display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #333;
+            background: rgba(255, 255, 255, 0.02); border-radius: 6px; margin-bottom: 12px; cursor: pointer; transition: 0.2s; position: relative;
+        }
+        .voucher-item:hover { border-color: #666; background: rgba(255,255,255,0.05); }
+        .voucher-item.active { border-color: #4caf50; background: rgba(76, 175, 80, 0.05); }
+        .v-info { flex: 1; }
+        .v-title { font-weight: bold; font-size: 1.05rem; color: #fff; margin-bottom: 5px; }
+        .v-desc { font-size: 0.85rem; color: #888; display: block; }
+        .v-date { font-size: 0.8rem; color: #666; margin-top: 3px; display: block; }
+        .v-check-circle {
+            width: 24px; height: 24px; border: 2px solid #666; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            transition: 0.2s; margin-left: 15px;
+        }
+        .voucher-item.active .v-check-circle { border-color: #4caf50; background: #4caf50; color: #fff; }
+        .v-check-circle::after { content: '✓'; font-size: 14px; font-weight: bold; color: #fff; display: none; }
+        .voucher-item.active .v-check-circle::after { display: block; }
+        input[type="radio"].v-radio-hidden { display: none; }
+        
+        .pdk-modal-footer {
+            padding: 20px; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center;
+            background: #1a1a1a; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;
+        }
+        #modalEstDiscount { color: #4caf50; font-weight: bold; font-family: 'Times New Roman'; font-size: 1.1rem; }
+        .btn-confirm-modal {
+            background: #fff; color: #000; border: none; padding: 10px 30px; border-radius: 4px; cursor: pointer;
+            font-weight: bold; letter-spacing: 1px; transition: 0.3s;
+        }
+        .btn-confirm-modal:hover { background: #e0e0e0; }
+        .voucher-item.special-item {
+            flex-direction: row; /* 確保左右排列 */
+            align-items: center;
+        }
+
+        /* 調整加減按鈕容器 */
+        .qty-control { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 12px; /* 按鈕間距 */
+            z-index: 2; 
+            background: #252525; /* 增加深色背景 */
+            padding: 5px 12px;
+            border-radius: 30px; /* 圓角膠囊狀 */
+            border: 1px solid #444;
+            min-width: 100px;
+        }
+
+        /* 按鈕本體 */
+        .qty-btn {
+            width: 28px; height: 28px; 
+            border-radius: 50%; 
+            border: 1px solid #666;
+            color: #fff; 
+            background: #333; 
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; user-select: none; transition: 0.2s;
+            font-size: 1.2rem; /* 符號大一點 */
+            line-height: 1;
+            padding-bottom: 2px;
+        }
+        .qty-btn:hover { 
+            border-color: #4caf50; 
+            background: #4caf50; 
+            color: #fff; 
+        }
+        
+        /* 數字顯示 */
+        .qty-val { 
+            font-weight: bold; 
+            min-width: 20px; 
+            text-align: center; 
+            color: #fff; 
+            font-size: 1.1rem;
+        }
+    </style>
 </head>
 <body>
 
@@ -30,8 +171,11 @@
             <div class="step-item active"><span>03</span> 訂單成立</div>
         </div>
 
-        <form id="checkoutForm" class="checkout-layout">
+        <form id="checkoutForm" class="checkout-layout" action="/submit_order" method="POST">
             
+            <input type="hidden" id="userTier" value="{{ current_user.member_tier if current_user.is_authenticated else 'Pure' }}">
+            <input type="hidden" id="shippingQuota" value="{{ current_user.free_shipping_quota if current_user.is_authenticated else 0 }}">
+
             <div class="form-container">
                 
                 <div class="form-section">
@@ -39,21 +183,27 @@
                     
                     <div class="form-group">
                         <label class="form-label">電子信箱 Email</label>
-                        <input type="email" id="inputEmail" name="email" class="form-input" placeholder="請輸入 Email 以接收訂單通知">
-                        <div class="error-msg">Email 格式不正確</div>
+                        <input type="email" id="inputEmail" name="email" class="form-input" 
+                               placeholder="請輸入 Email 以接收訂單通知" required
+                               value="{{ current_user.email if current_user.is_authenticated else '' }}">
+                        <div class="checkout-error-msg" id="err-inputEmail">Email 格式不正確</div>
                         <div id="emailSuggestion" class="suggestion-msg"></div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">收件人姓名</label>
-                        <input type="text" id="inputName" name="name" class="form-input" placeholder="請輸入真實姓名">
-                        <div class="error-msg">請填寫有效姓名 (勿使用特殊符號)</div>
+                        <input type="text" id="inputName" name="name" class="form-input" 
+                               placeholder="請輸入真實姓名" required
+                               value="{{ current_user.name if current_user.is_authenticated else '' }}">
+                        <div class="checkout-error-msg" id="err-inputName">請填寫有效姓名 (勿使用特殊符號)</div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">手機號碼</label>
-                        <input type="tel" id="inputPhone" name="phone" class="form-input" placeholder="09xxxxxxxx" maxlength="15">
-                        <div class="error-msg">請輸入正確的台灣手機號碼 (10碼)</div>
+                        <input type="tel" id="inputPhone" name="phone" class="form-input" 
+                               placeholder="09xxxxxxxx" maxlength="10" required
+                               value="{{ current_user.phone if current_user.is_authenticated else '' }}">
+                        <div class="checkout-error-msg" id="err-inputPhone">請輸入正確的台灣手機號碼 (10碼)</div>
                     </div>
                 </div>
 
@@ -61,7 +211,7 @@
                     <h3 class="form-title">送貨地點</h3>
                     
                     <div class="form-group">
-                        <label class="form-label">送貨方式</label>
+                        <label class="form-label">送貨方式(滿2000免運)</label>
                         <select name="shipping_method" id="shippingSelect" class="form-input">
                             <option value="home" data-price="100" selected>黑貓宅配 (運費 NT$100)</option>
                             <option value="store" data-price="40">7-11 超商取貨 (運費 NT$40)</option>
@@ -85,16 +235,20 @@
                         </div>
                         <div class="form-group" style="margin-top:20px;">
                             <label class="form-label">詳細地址</label>
-                            <input type="text" name="address" id="addressInput" class="form-input" placeholder="街道、巷弄、門號、樓層">
-                            <div class="error-msg">地址太短了，請填寫完整資訊</div>
+                            <input type="text" name="address" id="addressInput" class="form-input" 
+                                   placeholder="街道、巷弄、門號、樓層"
+                                   value="{{ current_user.address if current_user.is_authenticated and current_user.address else '' }}">
+                            <div class="checkout-error-msg" id="err-addressInput">地址太短了，請填寫完整資訊</div>
                         </div>
                     </div>
 
                     <div id="storePickupGroup" style="display: none;">
                         <div class="form-group">
                             <label class="form-label">取貨門市名稱 / 店號</label>
-                            <input type="text" name="store_name" id="storeNameInput" class="form-input" placeholder="例如：711 台北旗艦店 (123456)">
-                            <div class="error-msg">請填寫取貨門市</div>
+                            <input type="text" name="store_name" id="storeNameInput" class="form-input" 
+                                   placeholder="例如：711 台北旗艦店 (123456)"
+                                   value="{{ current_user.store_info if current_user.is_authenticated and current_user.store_info else '' }}">
+                            <div class="checkout-error-msg" id="err-storeNameInput">請填寫取貨門市</div>
                             <div style="font-size:0.8rem; color:#888; margin-top:5px;">
                                 * 請填寫您方便取貨的 711 門市名稱或店號
                             </div>
@@ -113,13 +267,85 @@
                         </select>
                     </div>
                     
-                    <div class="form-group">
-                        <label class="form-label">優惠代碼 (測試碼: VIP50)</label>
-                        <div style="display:flex; gap:10px;">
-                            <input type="text" id="promoInput" class="form-input" placeholder="輸入優惠碼" style="text-transform:uppercase;">
-                            <button type="button" id="btnApplyPromo" class="btn-minimal" style="padding:0 25px; height:48px; white-space:nowrap;">套用</button>
+                    <div class="discount-zone-container">
+                        <div class="discount-header" id="discountHeader">
+                            <div class="dh-left">
+                                <span class="dh-title" style="font-size:1.1rem; font-weight:bold; letter-spacing:1px;">折扣專區</span>
+                                <span class="dh-arrow" style="margin-left:10px; font-size:0.8rem;">▼</span>
+                            </div>
+                            <div class="dh-right" style="font-family:'Times New Roman'; font-size:1.1rem; color:#aaa;">
+                                已折抵: <span id="zoneTotalDiscountSummary" style="color:#fff;">NT$ <span id="zoneTotalDiscount">0</span></span>
+                            </div>
                         </div>
-                        <div id="promoMsg" style="font-size:0.85rem; margin-top:5px; height:20px;"></div>
+
+                        <div class="discount-body" id="discountBody" style="display:none;">
+                            
+                            <div class="dz-section">
+                                <label class="dz-label">優惠代碼 (Promo Code)</label>
+                                <div class="dz-input-group">
+                                    <input type="text" id="promoInput" class="form-input" placeholder="輸入代碼" style="text-transform:uppercase;">
+                                    <button type="button" id="btnApplyPromo" class="btn-minimal">套用</button>
+                                </div>
+                                <div id="promoMsg" class="dz-msg"></div>
+                            </div>
+
+                            <div class="dz-section">
+                                <label class="dz-label">我的折扣券 (Vouchers)</label>
+                                <div class="voucher-selector-box" id="btnOpenVoucherModal">
+                                    <div class="vs-text">
+                                        <span id="voucherSelectText">選擇您的折扣券</span>
+                                        <span class="vs-badge" id="voucherCountBadge" style="display:none;">0</span>
+                                    </div>
+                                    <span class="vs-arrow">></span>
+                                </div>
+                                
+                                <div id="voucherSuccessMsg" class="dz-msg" style="display:none; color:#4caf50; font-weight:bold; margin-top:10px;"></div>
+                                <div id="voucherWarningMsg" class="dz-msg" style="display:none; color:#ff5252; margin-top:5px;"></div>
+                            </div>
+
+                            {% if not current_user.used_referral %}
+                            <div class="dz-section" style="border-top:1px dashed #444; padding-top:20px; margin-top:10px;">
+                                <label class="dz-label">好友推薦碼 (Referral)</label>
+                                <div class="dz-input-group">
+                                    <input type="text" id="referralInput" class="form-input" placeholder="輸入推薦碼 ">
+                                    <button type="button" id="btnApplyReferral" class="btn-minimal">驗證</button>
+                                </div>
+                                <div id="referralMsg" class="dz-msg"></div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="promo_code" id="hiddenPromoCode">
+                    <input type="hidden" name="selected_vouchers" id="hiddenVouchers">
+                    <input type="hidden" name="referral_code" id="hiddenReferralCode">
+
+                    <div id="voucherModal" class="pdk-modal">
+                        <div class="pdk-modal-content">
+                            <div class="pdk-modal-header">
+                                <h4>選擇折扣券</h4>
+                                <span class="close-modal">&times;</span>
+                            </div>
+                            
+                            <div class="pdk-modal-body">
+                                <div class="v-limit-hint">
+                                    <span>目前消費 <span id="modalSubtotalInfo">$0</span></span>
+                                    <span>折扣上限: <span id="modalLimitInfo" style="font-weight:bold;">$300</span></span>
+                                </div>
+
+                                <div class="v-section-title">折扣券 (單選)</div>
+                                <div id="voucherListActivity" class="voucher-list">
+                                    </div>
+
+                                <div class="v-section-title" style="margin-top:20px;">特殊券 (可疊加)</div>
+                                <div id="voucherListReward" class="voucher-list">
+                                    </div>
+                            </div>
+
+                            <div class="pdk-modal-footer" style="justify-content: flex-end;">
+                                <button type="button" class="btn-confirm-modal" id="btnConfirmVouchers">確認使用</button>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="final-summary-box">
@@ -131,9 +357,15 @@
                             <span>運費</span>
                             <span>NT$ <span id="summaryShipping">100</span></span>
                         </div>
+                        
                         <div class="summary-row" id="discountRow" style="display:none; color:#4caf50;">
                             <span>優惠折扣</span>
                             <span>- NT$ <span id="summaryDiscount">0</span></span>
+                        </div>
+
+                        <div class="summary-row" id="memberDiscountRow" style="display:none; color:#4caf50;">
+                            <span>會員優惠 (<span id="memberTierName"></span>)</span>
+                            <span>- NT$ <span id="summaryMemberDiscount">0</span></span>
                         </div>
                         
                         <div class="summary-row total">
@@ -179,10 +411,266 @@
 
             <input type="hidden" name="cart_data" id="hiddenCartInput">
             <input type="hidden" name="discount" id="hiddenDiscountInput" value="0">
+            <input type="hidden" name="coupon_code" id="hiddenCouponCode" value="">
         </form>
     </div>
 
+    <script>
+        const SERVER_VOUCHERS = {{ vouchers | tojson | safe }};
+        console.log("後端傳來的折扣券:", SERVER_VOUCHERS);
+    </script>
+
     <script src="{{ url_for('static', filename='js/checkout.js') }}"></script>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- 既有的表單驗證邏輯 (保持不變) ---
+        const inputs = {
+            inputEmail: document.getElementById('inputEmail'),
+            inputName: document.getElementById('inputName'),
+            inputPhone: document.getElementById('inputPhone'),
+            addressInput: document.getElementById('addressInput'),
+            storeNameInput: document.getElementById('storeNameInput')
+        };
+
+        const validators = {
+            inputEmail: (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val),
+            inputName: (val) => val.trim().length > 0,
+            inputPhone: (val) => /^09\d{8}$/.test(val),
+            addressInput: (val) => val.trim().length > 5,
+            storeNameInput: (val) => val.trim().length > 0
+        };
+
+        function showError(key) {
+            const input = inputs[key];
+            const errorMsg = document.getElementById('err-' + key);
+            if(input && errorMsg) {
+                input.classList.add('error');
+                errorMsg.classList.add('show');
+            }
+        }
+
+        function clearError(key) {
+            const input = inputs[key];
+            const errorMsg = document.getElementById('err-' + key);
+            if(input && errorMsg) {
+                input.classList.remove('error');
+                errorMsg.classList.remove('show');
+            }
+        }
+
+        Object.keys(inputs).forEach(key => {
+            if(inputs[key]) {
+                inputs[key].addEventListener('blur', function() {
+                    if (this.value.trim() !== "") {
+                        const mode = document.getElementById('shippingSelect').value;
+                        if (key === 'addressInput' && mode === 'store') return;
+                        if (key === 'storeNameInput' && mode === 'home') return;
+
+                        if (!validators[key](this.value)) {
+                            showError(key);
+                        } else {
+                            clearError(key);
+                        }
+                    }
+                });
+                inputs[key].addEventListener('input', function() {
+                    clearError(key);
+                });
+            }
+        });
+
+        // --- 送出按鈕 ---
+        const submitBtn = document.getElementById('btnSubmitOrder');
+        const form = document.getElementById('checkoutForm');
+        const shippingSelect = document.getElementById('shippingSelect');
+        const homeGroup = document.getElementById('homeDeliveryGroup');
+        const storeGroup = document.getElementById('storePickupGroup');
+
+        // ★★★ 核心邏輯：自動計算會員優惠與免運 ★★★
+        // 這個函式會每秒檢查一次金額，確保畫面顯示正確
+        function updateMemberBenefits() {
+            // 1. 抓取目前畫面上的金額
+            const subtotalElem = document.getElementById('summarySubtotal');
+            const discountElem = document.getElementById('summaryDiscount');
+            const shippingElem = document.getElementById('summaryShipping');
+            
+            if (!subtotalElem) return; 
+
+            // ★★★ 步驟 A: 先把逗號 (,) 去掉 ★★★
+            // [^\d] 代表「非數字」，把它們全部換成空字串
+            let rawSubtotal = subtotalElem.innerText.replace(/[^\d]/g, '');
+            let rawDiscount = discountElem.innerText.replace(/[^\d]/g, '');
+
+            // ★★★ 步驟 B: 這裡要 parseInt 剛剛處理好的 rawSubtotal (不要放原本的 element) ★★★
+            let subtotal = parseInt(rawSubtotal || 0);
+            let cashDiscount = parseInt(rawDiscount || 0);
+            // 2. 抓取會員資料
+            const tier = document.getElementById('userTier').value; // Pure, Deep, Keep
+            const quota = parseInt(document.getElementById('shippingQuota').value || 0);
+
+            // 3. 計算會員折扣 (扣除現金優惠後再打折)
+            let taxableAmount = subtotal - cashDiscount;
+            if (taxableAmount < 0) taxableAmount = 0;
+
+            let memberDiscount = 0;
+            let tierName = "";
+
+            if (tier === 'Keep') {
+                memberDiscount = Math.floor(taxableAmount * 0.10); // 9折 = 減10%
+                tierName = "Keep 9折";
+            } else if (tier === 'Deep') {
+                memberDiscount = Math.floor(taxableAmount * 0.05); // 95折 = 減5%
+                tierName = "Deep 95折";
+            }
+
+            // 4. 計算運費 (處理免運邏輯)
+            let currentShipping = 100; // 預設宅配
+            if (shippingSelect.value === 'store') currentShipping = 40; // 預設超商
+
+            let finalShipping = currentShipping;
+
+            // 滿額免運 (全體適用)
+            if (subtotal >= 2000) {
+                finalShipping = 0;
+            } else {
+                // 會員免運
+                if (tier === 'Deep' && shippingSelect.value === 'store') {
+                    finalShipping = 0; // Deep 超商免運
+                } else if (tier === 'Keep' && quota > 0) {
+                    finalShipping = 0; // Keep 免運 (不限)
+                }
+            }
+
+            // 5. 更新畫面顯示
+            
+            // A. 會員優惠列
+            const memberRow = document.getElementById('memberDiscountRow');
+            if (memberDiscount > 0) {
+                memberRow.style.display = 'flex';
+                document.getElementById('memberTierName').innerText = tierName;
+                document.getElementById('summaryMemberDiscount').innerText = memberDiscount;
+            } else {
+                memberRow.style.display = 'none';
+            }
+
+            // B. 運費欄位 (如果有免運，可以加註)
+            shippingElem.innerText = finalShipping;
+            if (finalShipping === 0 && subtotal < 2000) {
+                // 如果是會員福利免運，加個綠色標示
+                shippingElem.style.color = "#4caf50"; 
+                shippingElem.innerText = "0 (會員免運)";
+            } else {
+                shippingElem.style.color = "#fff";
+            }
+
+            // C. 最終總金額
+            let finalTotal = subtotal - cashDiscount - memberDiscount + finalShipping;
+            if (finalTotal < 1) finalTotal = 1; // 至少付1元
+            
+            document.getElementById('summaryTotal').innerText = finalTotal;
+        }
+
+        // 綁定事件：當物流方式改變時，重算一次
+        if (shippingSelect) {
+            shippingSelect.addEventListener('change', function() {
+                if (this.value === 'home') {
+                    homeGroup.style.display = 'block';
+                    storeGroup.style.display = 'none';
+                } else {
+                    homeGroup.style.display = 'none';
+                    storeGroup.style.display = 'block';
+                }
+                // 延遲一點點執行，等待 checkout.js 可能的動作
+                setTimeout(updateMemberBenefits, 100);
+            });
+            // 初始化執行
+            const event = new Event('change');
+            shippingSelect.dispatchEvent(event);
+        }
+
+        // 使用定時器檢查金額變化 (因為 checkout.js 也是非同步更新)
+        setInterval(updateMemberBenefits, 500);
+
+
+        // --- 原本的送出檢查 ---
+        if(submitBtn) {
+            submitBtn.addEventListener('click', function(e) {
+                let isValid = true;
+                const mode = shippingSelect.value;
+
+                ['inputEmail', 'inputName', 'inputPhone'].forEach(key => {
+                    if(!validators[key](inputs[key].value)) {
+                        showError(key);
+                        isValid = false;
+                    }
+                });
+
+                if (mode === 'home') {
+                    if (!validators.addressInput(inputs.addressInput.value)) {
+                        showError('addressInput');
+                        isValid = false;
+                    }
+                } else {
+                    if (!validators.storeNameInput(inputs.storeNameInput.value)) {
+                        showError('storeNameInput');
+                        isValid = false;
+                    }
+                }
+
+                if (!isValid) {
+                    e.preventDefault();
+                    document.querySelector('.checkout-container').animate([
+                        { transform: 'translateX(-5px)' },
+                        { transform: 'translateX(5px)' },
+                        { transform: 'translateX(0)' }
+                    ], { duration: 300 });
+                } else {
+                    form.submit();
+                }
+            });
+        }
+
+        // 地址自動拆解
+        setTimeout(() => {
+            const fullAddress = "{{ current_user.address if current_user.is_authenticated and current_user.address else '' }}";
+            if (fullAddress && fullAddress.length > 5) {
+                const regex = /^(.{2,3}[縣市])(.{2,4}[區鄉鎮市])(.+)$/;
+                const match = fullAddress.match(regex);
+                if (match) {
+                    const city = match[1];
+                    const district = match[2];
+                    const detail = match[3];
+                    const citySelect = document.getElementById('citySelect');
+                    const districtSelect = document.getElementById('districtSelect');
+                    const addressInput = document.getElementById('addressInput');
+
+                    if (citySelect) {
+                        for (let i = 0; i < citySelect.options.length; i++) {
+                            if (citySelect.options[i].text === city) {
+                                citySelect.selectedIndex = i;
+                                const event = new Event('change');
+                                citySelect.dispatchEvent(event);
+                                break;
+                            }
+                        }
+                    }
+                    setTimeout(() => {
+                        if (districtSelect) {
+                            for (let i = 0; i < districtSelect.options.length; i++) {
+                                if (districtSelect.options[i].text === district) {
+                                    districtSelect.selectedIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+                    }, 200);
+                    if (addressInput) addressInput.value = detail;
+                }
+            }
+        }, 500);
+    });
+    </script>
 
 </body>
 </html>

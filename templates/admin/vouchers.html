@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>折扣券設定 | P.D.K Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+
+    <nav class="admin-navbar">
+        <div class="layout-container navbar-content">
+            <div class="navbar-brand"><i class="fas fa-box-open"></i> P.D.K Admin</div>
+            <div class="navbar-actions">
+                <a href="/" target="_blank" class="nav-link"><i class="fas fa-external-link-alt"></i> 前往前台</a>
+                <a href="/admin/logout" class="nav-link text-danger"><i class="fas fa-sign-out-alt"></i> 登出</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="admin-layout layout-container">
+        
+        <aside class="admin-sidebar">
+            <div class="sidebar-menu">
+                <a href="{{ url_for('admin_orders') }}" class="menu-item">
+                    <span><i class="fas fa-list"></i> 訂單管理</span>
+                </a>
+
+                <a href="{{ url_for('admin_products') }}" class="menu-item">
+                    <span><i class="fas fa-tags"></i> 商品管理</span>
+                </a>
+
+                <a href="{{ url_for('admin_coupons') }}" class="menu-item">
+                    <span><i class="fas fa-ticket-alt"></i> 優惠碼管理</span>
+                </a>
+
+                <a href="{{ url_for('admin_vouchers') }}" class="menu-item active">
+                    <span><i class="fas fa-percent"></i> 折扣券設定</span>
+                </a>
+
+                <a href="{{ url_for('send_birthday_vouchers') }}" class="menu-item" onclick="return confirm('確定要立即檢查並發送本月生日禮金嗎？');">
+                    <span style="color: #d4af37;"><i class="fas fa-birthday-cake"></i> 派發生日禮金</span>
+                </a>
+            </div>
+        </aside>
+
+        <main class="admin-content">
+            
+            <div class="card-header header-actions" style="margin-bottom: 20px;">
+                <h2>🎫 折扣券種類 (Vouchers)</h2>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div style="background:rgba(0, 255, 136, 0.1); color:#00ff88; padding:10px; border-radius:4px; margin-bottom:20px; text-align:center;">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="card" style="margin-bottom: 40px;">
+                <div class="card-header">
+                    <h3 style="font-size: 1.1rem; color: #fff;">+ 新增折扣券種類</h3>
+                </div>
+                <div class="form-body">
+                    <form method="POST">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>券名 (Title)</label>
+                                <input type="text" name="title" class="form-input" placeholder="例: 情人節快閃" required>
+                            </div>
+                            
+                            <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div>
+                                    <label>折扣金額 ($)</label>
+                                    <input type="number" name="discount" class="form-input" placeholder="100" required>
+                                </div>
+                                <div>
+                                    <label>類型</label>
+                                    <select name="voucher_type" class="form-select">
+                                        <option value="activity">🔴 活動券 (互斥/單選)</option>
+                                        <option value="reward">🟡 獎勵券 (可疊加)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div>
+                                    <label>最低消費門檻 (0 為不限)</label>
+                                    <input type="number" name="min_spend" class="form-input" value="0">
+                                </div>
+                                <div>
+                                    <label>領取後效期 (天)</label>
+                                    <input type="number" name="valid_days" class="form-input" value="30">
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div>
+                                    <label>開始時間 (可選)</label>
+                                    <input type="datetime-local" name="start_time" class="form-input">
+                                </div>
+                                <div>
+                                    <label>結束時間 (留空為永久)</label>
+                                    <input type="datetime-local" name="end_time" class="form-input">
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>備註說明</label>
+                                <input type="text" name="description" class="form-input" placeholder="給客人的說明...">
+                            </div>
+
+                        </div>
+                        
+                        <div style="text-align: right; margin-top: 20px;">
+                            <button type="submit" class="btn-complete">確認新增</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <h3 style="margin-bottom: 15px; color: #888; font-size: 1rem;">現有列表</h3>
+            <div class="card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>名稱</th>
+                            <th>金額</th>
+                            <th>門檻</th>
+                            <th>活動期間</th>
+                            <th>狀態</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in vouchers %}
+                        <tr>
+                            <td class="font-mono text-gray">{{ v.id }}</td>
+                            <td class="bold">{{ v.title }}</td>
+                            <td style="color: #ff6b6b; font-weight: bold;">${{ v.discount_value }}</td>
+                            <td>
+                                {% if v.min_spend > 0 %}滿 {{ v.min_spend }}{% else %}不限{% endif %}
+                            </td>
+                            <td class="text-sm text-gray">
+                                {% if v.start_time %}{{ v.start_time.strftime('%Y-%m-%d') }}{% else %}即起{% endif %}
+                                ~
+                                {% if v.end_time %}{{ v.end_time.strftime('%Y-%m-%d') }}{% else %}永久{% endif %}
+                            </td>
+                            <td>
+                                {% if v.is_active %}
+                                    <span class="status-badge status-paid">上架中</span>
+                                {% else %}
+                                    <span class="status-badge status-cancelled">已下架</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('admin_voucher_detail', id=v.id) }}" class="btn-detail">編輯 & 發放</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>退換貨政策 | P.D.K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 專用於政策頁面的樣式 */
+        .policy-container {
+            max-width: 800px;
+            margin: 120px auto 50px; /* 上方留白避開 navbar */
+            padding: 20px;
+            color: #e0e0e0;
+        }
+
+        .policy-card {
+            background: rgba(0, 0, 0, 0.65); /* 深黑毛玻璃 */
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 50px;
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .policy-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 40px;
+            letter-spacing: 2px;
+            color: #fff;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 20px;
+        }
+
+        .policy-section {
+            margin-bottom: 30px;
+        }
+
+        .policy-subtitle {
+            font-size: 1.1rem;
+            color: #fff;
+            margin-bottom: 15px;
+            font-weight: bold;
+            border-left: 3px solid #fff;
+            padding-left: 10px;
+            letter-spacing: 1px;
+        }
+
+        .policy-text {
+            font-size: 0.95rem;
+            line-height: 1.8;
+            color: #ccc;
+            text-align: justify;
+        }
+
+        .policy-text ul {
+            padding-left: 20px;
+            margin-top: 10px;
+        }
+
+        .policy-text li {
+            margin-bottom: 5px;
+        }
+
+        .highlight {
+            color: #fff;
+            font-weight: bold;
+            text-decoration: underline;
+            text-decoration-color: rgba(255,255,255,0.3);
+        }
+
+        /* 手機版微調 */
+        @media (max-width: 768px) {
+            .policy-card { padding: 30px 20px; }
+            .policy-title { font-size: 1.6rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-fixed-layer"></div>
+
+    <nav class="navbar">
+        <div class="menu-toggle" onclick="openNav()">&#9776;</div>
+        <a href="/" class="logo">P  D  K</a>
+        
+        <div class="cart-wrapper" onclick="toggleCart()">
+            <svg class="cart-icon-svg" viewBox="0 0 24 24">
+                <path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/>
+                <circle cx="9" cy="20" r="1.5" fill="#fff"/>
+                <circle cx="17" cy="20" r="1.5" fill="#fff"/>
+            </svg>
+            <span class="cart-badge">0</span>
+        </div>
+    </nav>
+
+    {% include 'includes/sidebar.html' %}
+    {% include 'includes/cart_drawer.html' %}
+
+    <div class="policy-container">
+        <div class="policy-card">
+            <h1 class="policy-title">RETURN POLICY<br><span style="font-size: 1rem; letter-spacing: 5px; color: #888;">退換貨政策</span></h1>
+
+            <div class="policy-section">
+                <div class="policy-subtitle">1. 七日鑑賞期說明</div>
+                <div class="policy-text">
+                    依照消費者保護法規定，P.D.K 消費者享有商品到貨 7 天鑑賞期（包含例假日）之權益。
+                    <br><br>
+                    <span class="highlight">請注意，鑑賞期非試用期。</span>
+                    <br>
+                    退回商品必須是全新狀態且包裝完整（保持商品、贈品、包裝、吊牌及所有附隨文件或資料之完整性），否則恕不接受退貨。
+                </div>
+            </div>
+
+            <div class="policy-section">
+                <div class="policy-subtitle">2. 退貨條件與限制 (重要)</div>
+                <div class="policy-text">
+                    由於本站販售之洗髮精、護髮素等商品屬於<span class="highlight">「個人衛生消耗性產品」</span>，考量衛生安全，一經拆封（如：撕除瓶口封膜、按壓壓頭、轉開瓶蓋等），除商品本身有瑕疵外，恕無法辦理退貨。
+                    <br><br>
+                    若您收到商品後有任何疑慮，請勿拆封，並立即與我們聯繫。
+                </div>
+            </div>
+
+            <div class="policy-section">
+                <div class="policy-subtitle">3. 瑕疵換貨流程</div>
+                <div class="policy-text">
+                    若您收到的商品有溢漏、瓶身破損或品項錯誤等瑕疵情況，請於收到商品 7 日內：
+                    <ul>
+                        <li>拍下瑕疵部位照片或影片。</li>
+                        <li>透過LINE Email 電話 聯繫我們。</li>
+                        <li>我們將盡速為您辦理免費換貨或是補寄正確商品。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="policy-section">
+                <div class="policy-subtitle">4. 退款說明</div>
+                <div class="policy-text">
+                    收到退貨商品並確認驗收無誤後，我們將於 4-7 個工作天內進行退款。
+                    <ul>
+                        <li><strong>款項退回：</strong>請和我們聯絡並提供銀行帳號資訊,原款將匯入指定帳號</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function openNav() {
+            var sidenav = document.getElementById("mySidenav");
+            if(sidenav) sidenav.style.width = "280px"; 
+            var overlay = document.getElementById("menuOverlay");
+            if(overlay) overlay.classList.add("show");
+        }
+    </script>
+</body>
+</html>

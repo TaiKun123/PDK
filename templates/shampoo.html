@@ -42,14 +42,34 @@
                 <div class="glass-card">
                     
                     <a href="/product/{{ p.id }}" style="display:block; text-decoration:none; flex-grow: 1;">
-                        <div class="card-img product-bg-{{ p.id }}"></div>
+                        
+                        {% if p.image %}
+                            <div class="card-img" style="background-image: url('{{ url_for('static', filename=p.image) }}'); background-size: cover; background-position: center;"></div>
+                        {% else %}
+                            <div class="card-img product-bg-{{ p.id }}"></div>
+                        {% endif %}
                         <div class="card-info">
                             <h3>{{ p.name }}</h3>
                             <div class="price">NT$ {{ p.price }}</div>
                         </div>
                     </a>
 
-                    <div class="card-action-btn" onclick="openQuickView('{{ p.id }}', '{{ p.name }}', {{ p.price }}, '{{ p.description }}')">
+                    {# ★★★ 修改重點：判斷描述是否包含分隔線，小視窗只顯示下半部 ★★★ #}
+                    {% if p.description %}
+                        {% set parts = p.description.split('======') %}
+                        {# 如果有分隔線，取第2部分(詳細介紹)；否則取全文 #}
+                        {% set quick_view_desc = parts[1] if parts|length > 1 else parts[0] %}
+                    {% else %}
+                        {% set quick_view_desc = '' %}
+                    {% endif %}
+
+                    <div class="card-action-btn" onclick="openQuickView(
+                        '{{ p.id }}', 
+                        '{{ p.name }}', 
+                        {{ p.price }}, 
+                        '{{ quick_view_desc | replace('\n', '') | replace('\r', '') | safe }}',
+                        '{% if p.image %}{{ url_for('static', filename=p.image) }}{% endif %}' 
+                    )">
                         <svg class="action-icon" viewBox="0 0 24 24">
                             <path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/>
                             <circle cx="9" cy="20" r="1.5" fill="currentColor"/>
@@ -61,10 +81,20 @@
 
                 {% endfor %}
             {% else %}
-                <p style="text-align:center; color:#888; width:100%;">尚無商品資料</p>
+                <p style="text-align:center; color:#888; width:100%; margin-top: 50px;">
+                    目前尚無商品上架
+                </p>
             {% endif %}
         </div>
     </div>
 
+    <script>
+        function openNav() {
+            var sidenav = document.getElementById("mySidenav");
+            if(sidenav) sidenav.style.width = "280px"; 
+            var overlay = document.getElementById("menuOverlay");
+            if(overlay) overlay.classList.add("show");
+        }
+    </script>
 </body>
 </html>

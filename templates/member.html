@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的帳號 | P.D.K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="bg-fixed-layer"></div>
+    <nav class="navbar">
+        <div class="menu-toggle" onclick="openNav()">&#9776;</div>
+        <a href="/" class="logo">P  D  K</a>
+        <div style="width: 30px;"></div>
+    </nav>
+    {% include 'includes/sidebar.html' %}
+
+    <div class="profile-container">
+        <div class="profile-card">
+            
+            <div class="profile-header">
+                <span class="profile-title">My Account</span>
+                <div class="btn-edit-icon" onclick="openEditModal()">
+                    <i class="fas fa-pen"></i>
+                </div>
+            </div>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div style="margin-bottom: 20px; padding: 10px; border: 1px solid rgba(255,255,255,0.2); text-align: center; font-size: 0.9rem; color: #fff; background: rgba(255,255,255,0.1);">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="info-group">
+                <div class="info-label">姓名 Name</div>
+                <div class="info-value">{{ current_user.name or '-' }}</div>
+            </div>
+            <div class="info-group">
+                <div class="info-label">生日 Birthday</div>
+                <div class="info-value">
+                    {% if current_user.birthday %}
+                        {{ current_user.birthday.strftime('%Y-%m-%d') }} 
+                        <span style="font-size: 0.8rem; color: #4caf50; margin-left: 10px;">(已設定)</span>
+                    {% else %}
+                        <span style="color: #aaa;">尚未設定 (設定後可領取生日禮)</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="info-group">
+                <div class="info-label">電話 Phone</div>
+                <div class="info-value">{{ current_user.phone or '-' }}</div>
+            </div>
+            
+            <div class="info-group">
+                <div class="info-label">信箱 Email</div>
+                <div class="info-value" style="color: #888;">{{ current_user.email }}</div>
+            </div>
+
+            <div class="info-group" style="margin-top: 30px;">
+                <div class="info-label">預設配送資訊 Default Info</div>
+
+                <div style="margin-top: 15px; margin-bottom: 5px;">
+                    <span class="tag-badge">宅配 Home Delivery</span>
+                </div>
+                <div style="color: #666; font-size: 0.8rem; margin-bottom: 4px; letter-spacing: 1px;">地址資訊 Address：</div>
+                <div class="info-value" style="line-height: 1.6; height: auto; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 20px;">
+                    {{ current_user.address if current_user.address else '尚未設定 Not Set' }}
+                </div>
+
+                <div style="margin-bottom: 5px;">
+                    <span class="tag-badge">超商 Store Pickup</span>
+                </div>
+                <div style="color: #666; font-size: 0.8rem; margin-bottom: 4px; letter-spacing: 1px;">超商門市 Store Info：</div>
+                <div class="info-value" style="line-height: 1.6; height: auto; border-bottom: 1px solid #333; padding-bottom: 8px;">
+                    {{ current_user.store_info if current_user.store_info else '尚未設定 Not Set' }}
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 class="modal-title">Edit Profile</h3>
+            
+            <form action="/member" method="POST">
+                <div class="info-label">姓名 Name</div>
+                <input type="text" name="name" class="modal-input" value="{{ current_user.name or '' }}" required>
+                
+                <div style="margin-top: 15px;">
+                    <div class="info-label">生日 Birthday <span style="font-size: 0.8rem; color: #ff5252;">(設定後不可修改)</span></div>
+                    
+                    {% if current_user.birthday %}
+                        <input type="date" class="modal-input" value="{{ current_user.birthday }}" disabled 
+                               style="background: rgba(255,255,255,0.05); color: #888; cursor: not-allowed;">
+                        <div style="font-size: 0.8rem; color: #888; margin-bottom: 20px;">如需修改生日請聯繫客服</div>
+                    {% else %}
+                        <input type="date" name="birthday" class="modal-input">
+                    {% endif %}
+                </div>
+
+                <div class="info-label">電話 Phone</div>
+                <input type="tel" name="phone" class="modal-input" value="{{ current_user.phone or '' }}" required>
+
+                <div style="border-top: 1px solid #333; 0 20px 0; padding-top: 20px;">
+                    <div class="info-label" style="color: #fff; margin-bottom: 10px;">宅配資訊 Home Delivery</div>
+                    <input type="text" name="address" class="modal-input" placeholder="請輸入完整地址 (縣市/區域/街道)" value="{{ current_user.address or '' }}">
+                </div>
+
+                <div style="border-top: 1px solid #333; margin: 20px 0; padding-top: 20px;">
+                    <div class="info-label" style="color: #fff; margin-bottom: 10px;">超商資訊 Store Pickup</div>
+                    <input type="text" name="store_info" class="modal-input" placeholder="請輸入超商名稱與店號 (例如: 7-11 統嶺店)" value="{{ current_user.store_info or '' }}">
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn-save">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openEditModal() { document.getElementById('editModal').style.display = 'flex'; }
+        function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
+        window.onclick = function(e) { if(e.target == document.getElementById('editModal')) closeEditModal(); }
+    </script>
+</body>
+</html>

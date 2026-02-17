@@ -1,4 +1,4 @@
-/* static/js/checkout.js */
+/* static/js/checkout.js - 完整合併版 */
 
 // ==========================================
 // 0. 台灣行政區資料庫 (保留原樣)
@@ -31,32 +31,47 @@ const taiwanDistricts = {
 // ==========================================
 // 1. 初始化變數
 // ==========================================
+// ★ 接收後端傳來的折扣券資料 (防呆: 若沒定義則為空陣列)
+let availableVouchers = (typeof SERVER_VOUCHERS !== 'undefined') ? SERVER_VOUCHERS : [];
+
 let cart = JSON.parse(localStorage.getItem('pdk_cart')) || [];
+let currentSubtotal = 0;
 let shippingFee = 100;
-let discount = 0;
-const PROMO_THRESHOLD = 1000;
+let totalDiscount = 0;
+
+// 常數定義
+const PROMO_THRESHOLD = 1000;         // 滿額贈門檻
+const FREE_SHIPPING_THRESHOLD = 2000; // 免運門檻
+
+let state = {
+    promoCode: null, 
+    referralCode: null, 
+    referralDiscount: 0, // ★ 必須要有這個
+    selectedTypeA: null, 
+    selectedTypeB: {} 
+};
 
 // ==========================================
 // 2. 啟動 (DOM Ready)
 // ==========================================
 document.addEventListener('DOMContentLoaded', function() {
-    renderPage();
-    initCitySelector();
+    renderPage(); // 渲染購物車
+    initCitySelector(); // 初始化縣市選單
     
-    // UI 事件綁定
+    // --- UI 事件綁定 (舊功能) ---
     const shippingSelect = document.getElementById('shippingSelect');
-    if (shippingSelect) shippingSelect.addEventListener('change', updateShipping);
+    if (shippingSelect) shippingSelect.addEventListener('change', () => {
+        updateShippingUI(); 
+        recalcTotal();
+    });
 
-    const btnApplyPromo = document.getElementById('btnApplyPromo');
-    if (btnApplyPromo) btnApplyPromo.addEventListener('click', applyPromo);
-    
     const confirmationHeader = document.getElementById('confirmationHeader');
     if (confirmationHeader) confirmationHeader.addEventListener('click', toggleConfirmation);
     
     const btnSubmitOrder = document.getElementById('btnSubmitOrder');
     if (btnSubmitOrder) btnSubmitOrder.addEventListener('click', submitOrder);
 
-    // ★ 新增：輸入欄位即時驗證 (Blur 事件)
+    // --- 輸入驗證 (舊功能) ---
     const nameInput = document.getElementById('inputName');
     if(nameInput) nameInput.addEventListener('blur', checkName);
 
@@ -80,33 +95,75 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // --- ★ 新增：折扣專區 UI 事件 ---
+    const header = document.getElementById('discountHeader');
+    const body = document.getElementById('discountBody');
+    if(header && body) {
+        header.addEventListener('click', () => {
+            header.classList.toggle('active');
+            body.style.display = (body.style.display === 'none') ? 'block' : 'none';
+        });
+    }
+
+    // 優惠碼按鈕 (改用新的 applyPromoCode)
+    const btnPromo = document.getElementById('btnApplyPromo');
+    if(btnPromo) btnPromo.addEventListener('click', applyPromoCode);
+
+    // 推薦碼按鈕
+    const btnRef = document.getElementById('btnApplyReferral');
+    if(btnRef) btnRef.addEventListener('click', applyReferralCode);
+
+    // 折扣券 Modal 相關
+    const btnModal = document.getElementById('btnOpenVoucherModal');
+    const modal = document.getElementById('voucherModal');
+    const close = document.querySelector('.close-modal');
+    const confirm = document.getElementById('btnConfirmVouchers');
+
+    if(btnModal) btnModal.addEventListener('click', openVoucherModal);
+    if(close) close.addEventListener('click', () => modal.style.display = 'none');
+    if(confirm) confirm.addEventListener('click', confirmVoucherSelection);
+    
+    // 點擊視窗外關閉 Modal
+    window.onclick = function(event) {
+        if (event.target == modal) modal.style.display = "none";
+    }
+
     // 初始化狀態
-    updateShipping();
+    updateShippingUI();
 });
 
 // ==========================================
-// 3. 渲染頁面 (保留原樣)
+// 3. 渲染頁面
 // ==========================================
 function renderPage() {
     const listEl = document.getElementById('checkoutItemsList');
     if (!listEl) return;
 
-    let subtotal = 0;
+    currentSubtotal = 0; // 重置小計
     let html = '';
 
     if (cart.length === 0) {
         listEl.innerHTML = '<p style="text-align:center; color:#666; padding:20px;">購物車是空的</p>';
-        updateValues(0);
+        recalcTotal();
         return;
     }
 
     cart.forEach(item => {
         let itemTotal = item.price * item.qty;
-        subtotal += itemTotal;
+        currentSubtotal += itemTotal;
+
+        // 判斷圖片來源
+        let imgStyle = '';
+        let bgClass = '';
+        if (item.img && item.img.trim() !== '') {
+            imgStyle = `background-image: url('${item.img}'); background-size: cover; background-position: center;`;
+        } else {
+            bgClass = `product-bg-${item.id}`;
+        }
 
         html += `
         <div class="checkout-item">
-            <div class="checkout-img product-bg-${item.id}"></div>
+            <div class="checkout-img ${bgClass}" style="${imgStyle}"></div>
             <div style="flex:1;">
                 <div style="font-size:0.95rem; margin-bottom:5px;">${item.name}</div>
                 <div style="font-size:0.85rem; color:#888;">NT$ ${item.price}</div>
@@ -122,43 +179,165 @@ function renderPage() {
     });
 
     listEl.innerHTML = html;
-    updateValues(subtotal);
+    recalcTotal(); // ★ 渲染完立刻算一次錢
 }
 
-// ==========================================
-// 4. 數值更新核心 (保留原樣)
-// ==========================================
-function updateValues(subtotal) {
-    let total = subtotal + shippingFee - discount;
+function recalcTotal() {
+    // 1. 運費 & 免運
+    const select = document.getElementById('shippingSelect');
+    let baseShippingFee = 100; 
+    if (select && select.options[select.selectedIndex]) {
+        baseShippingFee = parseInt(select.options[select.selectedIndex].dataset.price);
+    }
+    
+    // ★★★ 這裡順便幫您修正會員免運邏輯，確保變數能讀到 ★★★
+    const tierElem = document.getElementById('userTier');
+    const tier = tierElem ? tierElem.value : 'Pure';
+    const quotaElem = document.getElementById('shippingQuota');
+    const quota = quotaElem ? parseInt(quotaElem.value) : 0;
+
+    if (currentSubtotal >= FREE_SHIPPING_THRESHOLD) {
+        shippingFee = 0; 
+    } else {
+        shippingFee = baseShippingFee;
+        // 補上會員免運判斷
+        if (tier === 'Deep' && select.value === 'store') shippingFee = 0;
+        else if (tier === 'Keep' && quota > 0) shippingFee = 0;
+    }
+
+    // ===================================
+    // A. 優惠碼
+    // ===================================
+    let promoDiscount = 0;
+    if (state.promoCode) {
+        promoDiscount = state.promoCode.discount;
+    }
+
+    // ===================================
+    // ★★★ B-0. 新增：讀取推薦碼折扣 ★★★
+    // ===================================
+    // 如果驗證成功，state.referralDiscount 會是 50，否則為 0
+    let referralDiscount = state.referralDiscount || 0;
+
+
+    // ===================================
+    // B. 折扣券 (計算原始總額 vs 上限)
+    // ===================================
+    let rawVoucherDiscount = 0;
+
+    // Type A
+    if (state.selectedTypeA) {
+        const v = availableVouchers.find(v => v.id == state.selectedTypeA);
+        if (v && currentSubtotal >= v.voucher.min_spend) {
+            rawVoucherDiscount += v.voucher.discount_value;
+        }
+    }
+    // Type B
+    for (const [vid, count] of Object.entries(state.selectedTypeB)) {
+        const v = availableVouchers.find(v => v.id == vid);
+        if (v && count > 0 && currentSubtotal >= v.voucher.min_spend) {
+            rawVoucherDiscount += (v.voucher.discount_value * count);
+        }
+    }
+
+    // 折扣券上限邏輯
+    let voucherCap = (currentSubtotal >= 1500) ? 600 : 300;
+    let actualVoucherDiscount = Math.min(rawVoucherDiscount, voucherCap);
+
+    // UI 提示文字
+    const successMsg = document.getElementById('voucherSuccessMsg');
+    const warningMsg = document.getElementById('voucherWarningMsg');
+
+    if (actualVoucherDiscount > 0) {
+        successMsg.style.display = 'block';
+        successMsg.innerText = `折扣券已套用！折抵 NT$${actualVoucherDiscount}`;
+        
+        if (rawVoucherDiscount > voucherCap) {
+            warningMsg.style.display = 'block';
+            warningMsg.innerText = `超出折抵上限 (本單上限 $${voucherCap})，請檢查使用的優惠券，超出不退還`;
+        } else {
+            warningMsg.style.display = 'none';
+        }
+    } else {
+        successMsg.style.display = 'none';
+        warningMsg.style.display = 'none';
+    }
+
+    // ===================================
+    // C. 總折扣 = 優惠碼 + 折扣券 + ★★★ 推薦碼 ★★★
+    // ===================================
+    // 修改這裡：把 referralDiscount 加進去
+    totalDiscount = promoDiscount + actualVoucherDiscount + referralDiscount;
+
+    // 安全防護 (折扣不能超過商品總額)
+    if (totalDiscount > currentSubtotal) totalDiscount = currentSubtotal;
+
+    // 3. 計算總金額
+    let total = currentSubtotal + shippingFee - totalDiscount;
     if (total < 0) total = 0;
 
-    safeSetText('headerSubtotal', subtotal.toLocaleString());
-    safeSetText('rightSubtotal', subtotal.toLocaleString());
-    safeSetText('summarySubtotal', subtotal.toLocaleString());
-    safeSetText('summaryShipping', shippingFee);
-    safeSetText('summaryDiscount', discount);
+    // 4. 更新 UI 數字
+    safeSetText('headerSubtotal', currentSubtotal.toLocaleString());
+    safeSetText('rightSubtotal', currentSubtotal.toLocaleString());
+    safeSetText('summarySubtotal', currentSubtotal.toLocaleString());
+    
+    const feeEl = document.getElementById('summaryShipping');
+    if(feeEl) {
+        if (shippingFee === 0 && currentSubtotal < FREE_SHIPPING_THRESHOLD) {
+             // 顯示綠色 (會員免運)
+             feeEl.innerHTML = '<span style="color:#4caf50; font-weight:bold;"> 0 (會員免運)</span>';
+        } else if (shippingFee === 0) {
+             feeEl.innerHTML = '<span style="color:#4caf50; font-weight:bold;"> 0 </span>';
+        } else {
+             feeEl.innerText = shippingFee;
+             feeEl.style.color = '#fff';
+        }
+    }
+
+    // ★ 這裡會自動更新「折扣專區總額」和「下方折扣明細」
+    safeSetText('summaryDiscount', totalDiscount);
+    safeSetText('zoneTotalDiscount', totalDiscount);
     safeSetText('summaryTotal', total.toLocaleString());
 
-    // ★★★ 新增這段：同步更新隱藏欄位，讓後端收得到折扣金額 ★★★
-    const hiddenDiscount = document.getElementById('hiddenDiscountInput');
-    if (hiddenDiscount) {
-        hiddenDiscount.value = discount;
+    const zoneSummarySpan = document.getElementById('zoneTotalDiscountSummary');
+    if (zoneSummarySpan) {
+        if (totalDiscount > 0) zoneSummarySpan.classList.add('dh-summary-green');
+        else zoneSummarySpan.classList.remove('dh-summary-green');
     }
-    // ★★★ 新增結束 ★★★
 
     const discRow = document.getElementById('discountRow');
-    if (discRow) discRow.style.display = discount > 0 ? 'flex' : 'none';
+    if (discRow) discRow.style.display = totalDiscount > 0 ? 'flex' : 'none';
 
+    // Modal 內的提示
+    const modalSub = document.getElementById('modalSubtotalInfo');
+    const modalLim = document.getElementById('modalLimitInfo');
+    if(modalSub) modalSub.innerText = `$${currentSubtotal}`;
+    if(modalLim) modalLim.innerText = `$${voucherCap}`;
+
+    updateHiddenInputs();
+    updatePromoTaskBar();
+}
+
+function updatePromoTaskBar() {
     const promoEl = document.getElementById('promoTask');
     const promoText = document.getElementById('promoText');
+    
     if (promoEl && promoText) {
         const icon = promoEl.querySelector('.task-icon');
-        if (subtotal >= PROMO_THRESHOLD) {
+        
+        if (currentSubtotal >= PROMO_THRESHOLD) {
             promoEl.className = 'promo-task-bar task-success';
             icon.innerText = '✓';
-            promoText.innerText = '已達成！贈送旅行分裝小瓶';
+            
+            if (currentSubtotal >= FREE_SHIPPING_THRESHOLD) {
+                promoText.innerText = '已達成免運！且贈送旅行分裝小瓶';
+            } else {
+                let diffShip = FREE_SHIPPING_THRESHOLD - currentSubtotal;
+                promoText.innerText = `已送小瓶！再買 NT$ ${diffShip} 享免運`;
+            }
+
         } else {
-            let diff = PROMO_THRESHOLD - subtotal;
+            let diff = PROMO_THRESHOLD - currentSubtotal;
             promoEl.className = 'promo-task-bar task-fail';
             icon.innerText = '✕';
             promoText.innerText = `還差 NT$ ${diff} 送旅行分裝小瓶`;
@@ -166,28 +345,380 @@ function updateValues(subtotal) {
     }
 }
 
-function safeSetText(id, text) {
-    const el = document.getElementById(id);
-    if (el) el.innerText = text;
+function updateHiddenInputs() {
+    // 1. 優惠碼
+    const hiddenPromo = document.getElementById('hiddenPromoCode');
+    if(hiddenPromo) hiddenPromo.value = state.promoCode ? state.promoCode.code : '';
+    
+    // 2. 推薦碼
+    const hiddenRef = document.getElementById('hiddenReferralCode');
+    if(hiddenRef) hiddenRef.value = state.referralCode || '';
+
+    // 3. 折扣券 IDs (轉換為 "1,5,5" 格式)
+    let ids = [];
+    if (state.selectedTypeA) ids.push(state.selectedTypeA);
+    for (const [vid, count] of Object.entries(state.selectedTypeB)) {
+        for(let i=0; i<count; i++) ids.push(vid);
+    }
+    const hiddenVouchers = document.getElementById('hiddenVouchers');
+    if(hiddenVouchers) hiddenVouchers.value = ids.join(',');
+    
+    // 4. 購物車資料
+    const hiddenCart = document.getElementById('hiddenCartInput');
+    if(hiddenCart) hiddenCart.value = JSON.stringify(cart);
 }
 
 // ==========================================
-// 5. 變更運費 & UI 切換 (保留原樣)
+// 5. 折扣券 Modal 邏輯 (★ 新增)
 // ==========================================
-function updateShipping() {
+function openVoucherModal() {
+    const modal = document.getElementById('voucherModal');
+    modal.style.display = 'flex';
+    renderVoucherList();
+}
+
+function renderVoucherList() {
+    const listA = document.getElementById('voucherListActivity');
+    const listB = document.getElementById('voucherListReward');
+    
+    listA.innerHTML = '';
+    listB.innerHTML = '';
+
+    // Type B 分組
+    let groupB = {};
+
+    availableVouchers.forEach(uv => {
+        // 低消判斷
+        const disabled = currentSubtotal < uv.voucher.min_spend;
+        const disabledStyle = disabled ? 'opacity:0.5; pointer-events:none;' : '';
+        const hint = disabled ? `<span style="color:#ff5252; font-size:0.75rem;">(滿$${uv.voucher.min_spend}可用)</span>` : '';
+
+        // 日期格式化
+        const dateStr = uv.expiry_date ? `時限: ${uv.expiry_date}` : '永久有效';
+
+        if (uv.voucher.voucher_type === 'activity') {
+            // --- ★ Type A (單選): 圓圈打勾樣式 ---
+            const isSelected = (state.selectedTypeA == uv.id);
+            const activeClass = isSelected ? 'active' : '';
+            
+            const html = `
+                <div class="voucher-item ${activeClass}" style="${disabledStyle}" onclick="tempSelectA('${uv.id}')">
+                    <div class="v-info">
+                        <div class="v-title">${uv.voucher.title} ${hint}</div>
+                        <span class="v-desc">折抵 NT$${uv.voucher.discount_value}</span>
+                        <span class="v-date">${dateStr}</span>
+                    </div>
+                    <div class="v-check-circle"></div>
+                </div>
+            `;
+            listA.innerHTML += html;
+
+        } else {
+            // Group Type B (準備資料)
+            const key = uv.voucher.title;
+            if (!groupB[key]) groupB[key] = { ids: [], def: uv.voucher, expiry: dateStr };
+            groupB[key].ids.push(uv.id);
+        }
+    });
+
+    if (listA.innerHTML === '') listA.innerHTML = '<div style="color:#666; padding:10px;">無可用活動券</div>';
+
+    // --- Type B (可疊加): 維持計數器 ---
+    if (Object.keys(groupB).length === 0) {
+        listB.innerHTML = '<div style="color:#666; text-align:center; padding:10px;">無可用獎勵券</div>';
+    }
+
+    for (const [title, data] of Object.entries(groupB)) {
+        let usedCount = 0;
+        data.ids.forEach(id => { if (state.selectedTypeB[id]) usedCount++; });
+
+        const totalOwn = data.ids.length;
+        const disabled = currentSubtotal < data.def.min_spend;
+        const disabledStyle = disabled ? 'opacity:0.5;' : '';
+        const hint = disabled ? `<span style="color:#ff5252;">(未達門檻)</span>` : `持有: ${totalOwn}`;
+
+        const html = `
+            <div class="voucher-item" style="${disabledStyle}; cursor:default;">
+                <div class="v-info">
+                    <div class="v-title">${title}</div>
+                    <span class="v-desc">單張折抵 $${data.def.discount_value} | ${hint}</span>
+                </div>
+                <div class="qty-control">
+                    <div class="qty-btn" onclick="tempChangeB('${title}', -1)">-</div>
+                    <div class="qty-val" id="qty_${title}">${usedCount}</div>
+                    <div class="qty-btn" onclick="tempChangeB('${title}', 1)">+</div>
+                </div>
+            </div>
+        `;
+        listB.innerHTML += html;
+    }
+}
+// 暫存選擇 A
+function tempSelectA(id) {
+    if (state.selectedTypeA == id) {
+        state.selectedTypeA = null; // 再次點擊 -> 取消選取
+    } else {
+        state.selectedTypeA = id; // 選取
+    }
+    renderVoucherList(); // ★ 重繪列表：這是讓綠色框框顯示的關鍵
+    updateModalEstimate(); // 更新預估金額
+}
+
+// 暫存選擇 B (計數器邏輯)
+function tempChangeB(title, delta) {
+    let allIds = [];
+    let def = null;
+    availableVouchers.forEach(v => {
+        if (v.voucher.title === title && v.voucher.voucher_type !== 'activity') {
+            allIds.push(v.id);
+            def = v.voucher;
+        }
+    });
+
+    if (!def) return;
+    if (currentSubtotal < def.min_spend) return;
+
+    let currentSelectedIds = [];
+    allIds.forEach(id => {
+        if (state.selectedTypeB[id]) currentSelectedIds.push(id);
+    });
+    let count = currentSelectedIds.length;
+
+    // 檢查總上限
+    let totalBCount = 0;
+    for (let c of Object.values(state.selectedTypeB)) totalBCount += c;
+
+    if (delta > 0) {
+        // 增加
+        const limit = (currentSubtotal >= 1000) ? 5 : 3;
+        if (totalBCount >= limit) { alert(`消費金額對應的特殊券上限為 ${limit} 張`); return; }
+        if (count >= allIds.length) return; // 不能超過持有數
+
+        // 找一個沒被選的 ID 加進去
+        const freeId = allIds.find(id => !state.selectedTypeB[id]);
+        if (freeId) state.selectedTypeB[freeId] = 1;
+
+    } else {
+        // 減少
+        if (count <= 0) return;
+        const removeId = currentSelectedIds[currentSelectedIds.length - 1];
+        delete state.selectedTypeB[removeId];
+    }
+    renderVoucherList();
+}
+
+function updateModalEstimate() {
+    let rawEst = 0; // 原始折扣總和 (未受限)
+
+    // 1. 計算 Type A (活動券)
+    if (state.selectedTypeA) {
+        // 使用寬鬆比對 (==) 避免 ID 型別問題
+        const v = availableVouchers.find(i => i.id == state.selectedTypeA);
+        if (v) rawEst += v.voucher.discount_value;
+    }
+
+    // 2. 計算 Type B (獎勵券) - ★ 改用跟 recalcTotal 一樣的寫法
+    for (const [vid, count] of Object.entries(state.selectedTypeB)) {
+        const v = availableVouchers.find(i => i.id == vid);
+        if (v && count > 0) {
+            rawEst += (v.voucher.discount_value * count);
+        }
+    }
+
+    // 3. 套用上限邏輯 ($1500 / $300 / $600)
+    let discountCap = (currentSubtotal >= 1500) ? 600 : 300;
+    
+    // 最終預估 = 取 (原始總和, 上限, 商品總額) 的最小值
+    let finalEst = Math.min(rawEst, discountCap, currentSubtotal);
+
+    // 4. 更新 UI 顯示
+    const el = document.getElementById('modalEstDiscount');
+    if (el) {
+        // 如果原始折扣 > 上限，顯示紅字提示
+        if (rawEst > discountCap) {
+            el.innerHTML = `${finalEst} <span style="font-size:0.8rem; color:#ff5252; margin-left:5px;">(已達折扣券上限)</span>`;
+        } else {
+            el.innerText = finalEst;
+        }
+    }
+}
+
+function confirmVoucherSelection() {
+    // 更新外部 UI 文字
+    let count = 0;
+    if (state.selectedTypeA) count++;
+    count += Object.keys(state.selectedTypeB).length;
+
+    const badge = document.getElementById('voucherCountBadge');
+    const text = document.getElementById('voucherSelectText');
+    
+    if (count > 0) {
+        badge.innerText = count;
+        badge.style.display = 'inline-block';
+        text.innerText = `已選擇 ${count} 張券`;
+        text.style.fontWeight = 'bold';
+        text.style.color = '#333';
+    } else {
+        badge.style.display = 'none';
+        text.innerText = '選擇您的折扣券';
+        text.style.fontWeight = 'normal';
+        text.style.color = '#666';
+    }
+
+    document.getElementById('voucherModal').style.display = 'none';
+    recalcTotal();
+}
+
+// ==========================================
+// 6. 優惠碼與推薦碼 (★ 整合舊 API)
+// ==========================================
+function applyPromoCode() {
+    const input = document.getElementById('promoInput');
+    const msg = document.getElementById('promoMsg');
+    const code = input.value.trim();
+
+    if (!code) return;
+    
+    if(msg) { msg.innerText = "檢查中..."; msg.style.color = "#666"; }
+
+    // 使用您原本寫好的 API
+    fetch('/api/check_coupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code, amount: currentSubtotal })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // ★ 成功後存入 state，而不是直接改 total
+            state.promoCode = { code: code, discount: data.discount_amount };
+            
+            if(msg) { 
+                msg.style.color = '#4caf50'; 
+                msg.innerText = data.message; 
+            }
+            input.disabled = true;
+            // 鎖定按鈕
+            const btn = document.getElementById('btnApplyPromo');
+            if(btn) { btn.innerText = "已套用"; btn.disabled = true; }
+            
+            recalcTotal(); // 重算
+        } else {
+            state.promoCode = null;
+            if(msg) { 
+                msg.style.color = '#ff5252'; 
+                msg.innerText = data.message; 
+            }
+            recalcTotal();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if(msg) { msg.style.color = '#ff5252'; msg.innerText = '系統錯誤，請稍後再試'; }
+    });
+}
+
+function applyReferralCode() {
+    const input = document.getElementById('referralInput');
+    const msg = document.getElementById('referralMsg');
+    const btn = document.getElementById('btnApplyReferral');
+    const code = input.value.trim();
+    
+    // 1. 基本檢查
+    if(!code) {
+        if(msg) { 
+            msg.innerText = "請輸入代碼"; 
+            msg.className = "dz-msg error"; 
+        }
+        return;
+    }
+
+    // 2. 鎖定按鈕，顯示檢查中
+    if(btn) { 
+        btn.innerText = "檢查中..."; 
+        btn.disabled = true; 
+    }
+
+    // 3. ★★★ 關鍵：發送 AJAX 問後端這個碼對不對 ★★★
+    fetch('/api/check_referral', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.valid) {
+            // --- 驗證成功 ---
+            state.referralCode = code;
+            state.referralDiscount = 50; // ★ 設定折扣金額為 50
+            
+            // 顯示綠色成功訊息
+            if(msg) {
+                msg.innerHTML = '<span style="color:#4caf50;">✔ ' + data.msg + '</span>';
+                msg.className = "dz-msg success";
+            }
+            
+            // 鎖定輸入框
+            input.disabled = true;
+            if(btn) btn.innerText = "已套用";
+            
+            // 更新隱藏欄位 (讓送出訂單時後端收得到)
+            const hiddenRef = document.getElementById('hiddenReferralCode');
+            if(hiddenRef) hiddenRef.value = code;
+
+            // ★ 立即重算金額 (這會讓折扣專區馬上顯示金額)
+            recalcTotal(); 
+        } else {
+            // --- 驗證失敗 ---
+            state.referralCode = null;
+            state.referralDiscount = 0; // 歸零
+            
+            // 顯示紅色錯誤訊息
+            if(msg) {
+                msg.innerText = data.msg; // 例如：無效的推薦碼
+                msg.className = "dz-msg error";
+            }
+            
+            if(btn) { 
+                btn.innerText = "驗證"; 
+                btn.disabled = false; 
+            }
+            
+            const hiddenRef = document.getElementById('hiddenReferralCode');
+            if(hiddenRef) hiddenRef.value = "";
+            
+            recalcTotal(); // 重算 (把可能原本有的扣掉)
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        if(msg) { 
+            msg.innerText = "系統忙碌中，請稍後再試"; 
+            msg.className = "dz-msg error"; 
+        }
+        if(btn) { 
+            btn.innerText = "驗證"; 
+            btn.disabled = false; 
+        }
+    });
+}
+
+// ==========================================
+// 7. 輔助函式與驗證 (保留舊功能)
+// ==========================================
+function safeSetText(id, text) {
+    const el = document.getElementById(id);
+    if(el) el.innerText = text;
+}
+
+function updateShippingUI() {
     const select = document.getElementById('shippingSelect');
     if (!select) return;
-
-    const selectedOption = select.options[select.selectedIndex];
-    if (selectedOption) {
-        shippingFee = parseInt(selectedOption.dataset.price);
-    }
 
     const method = select.value;
     const homeGroup = document.getElementById('homeDeliveryGroup');
     const storeGroup = document.getElementById('storePickupGroup');
     
-    // 雖然驗證邏輯已改用 JS 控制，但保留 required 屬性可作為輔助
     const citySelect = document.getElementById('citySelect');
     const districtSelect = document.getElementById('districtSelect');
     const addressInput = document.getElementById('addressInput');
@@ -211,42 +742,6 @@ function updateShipping() {
         if(addressInput) addressInput.removeAttribute('required');
         if(storeInput) storeInput.setAttribute('required', 'required');
     }
-
-    let subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    updateValues(subtotal);
-}
-
-// ==========================================
-// 6. 頁面功能函數 (保留原樣)
-// ==========================================
-window.changeQty = function(id, delta) {
-    let item = cart.find(i => i.id === id);
-    if (item) {
-        item.qty += delta;
-        if (item.qty <= 0) {
-            cart = cart.filter(i => i.id !== id);
-        }
-        localStorage.setItem('pdk_cart', JSON.stringify(cart));
-        renderPage();
-    }
-};
-
-function applyPromo() {
-    const input = document.getElementById('promoInput');
-    const msg = document.getElementById('promoMsg');
-    if (!input) return;
-
-    const code = input.value.trim().toUpperCase();
-    if (code === 'VIP50') {
-        discount = 50;
-        if(msg) { msg.style.color = '#4caf50'; msg.innerText = '優惠碼套用成功！折抵 NT$50'; }
-    } else {
-        discount = 0;
-        if(msg) { msg.style.color = '#ff5252'; msg.innerText = '無效的優惠碼'; }
-    }
-    
-    let subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    updateValues(subtotal);
 }
 
 function toggleConfirmation() {
@@ -263,6 +758,18 @@ function toggleConfirmation() {
         }
     }
 }
+
+window.changeQty = function(id, delta) {
+    let item = cart.find(i => i.id === id);
+    if (item) {
+        item.qty += delta;
+        if (item.qty <= 0) {
+            cart = cart.filter(i => i.id !== id);
+        }
+        localStorage.setItem('pdk_cart', JSON.stringify(cart));
+        renderPage();
+    }
+};
 
 function initCitySelector() {
     const citySelect = document.getElementById('citySelect');
@@ -291,17 +798,12 @@ function initCitySelector() {
     });
 }
 
-// ==========================================
-// 7. ★ 新增：進階驗證邏輯與送出
-// ==========================================
-
-// Regex 定義
+// 驗證邏輯 (Regex)
 const patterns = {
-    name: /^[\u4e00-\u9fa5a-zA-Z\s]+$/, // 中文、英文、空格
+    name: /^[\u4e00-\u9fa5a-zA-Z\s]+$/, 
     email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ 
 };
 
-// 輔助函式：顯示錯誤/成功 UI
 function showError(input, errorMsgDiv) {
     input.classList.add('error');
     if (errorMsgDiv) errorMsgDiv.classList.add('show');
@@ -311,7 +813,6 @@ function showSuccess(input, errorMsgDiv) {
     if (errorMsgDiv) errorMsgDiv.classList.remove('show');
 }
 
-// A. 驗證姓名
 function checkName() {
     const input = document.getElementById('inputName');
     if(!input) return false;
@@ -327,24 +828,19 @@ function checkName() {
     }
 }
 
-// B. 驗證電話 (含自動補0、去除非數字)
 function checkPhone() {
     const input = document.getElementById('inputPhone');
     if(!input) return false;
     const error = input.parentElement.querySelector('.error-msg');
     let val = input.value;
 
-    // 移除所有非數字
     val = val.replace(/\D/g, '');
-
-    // 邏輯：如果是 9 開頭且長度是 9 (例如 912345678)，自動補 0
     if (val.length === 9 && val.startsWith('9')) {
         val = '0' + val;
     }
 
-    // 最終檢查：09開頭 + 10碼
     if (val.length === 10 && val.startsWith('09')) {
-        input.value = val; // 填回乾淨的號碼
+        input.value = val; 
         showSuccess(input, error);
         return true;
     } else {
@@ -353,7 +849,6 @@ function checkPhone() {
     }
 }
 
-// C. 驗證 Email (含 ggmail 自動修正)
 function checkEmail() {
     const input = document.getElementById('inputEmail');
     if(!input) return false;
@@ -361,7 +856,6 @@ function checkEmail() {
     const suggestion = document.getElementById('emailSuggestion');
     let val = input.value.trim().toLowerCase();
 
-    // 常見錯誤修正
     const typos = ['@ggmail.', '@gamil.', '@gmal.', '@gnail.', '@gmai.'];
     let autoFixed = false;
 
@@ -373,7 +867,6 @@ function checkEmail() {
         }
     });
 
-    // 顯示修正提示
     if (autoFixed && suggestion) {
         suggestion.innerText = "已為您修正為 @gmail.com";
         suggestion.style.display = 'block';
@@ -391,7 +884,6 @@ function checkEmail() {
     }
 }
 
-// D. 驗證地址 (依據運送方式)
 function checkDeliveryInfo() {
     const methodSelect = document.getElementById('shippingSelect');
     if(!methodSelect) return false;
@@ -403,14 +895,12 @@ function checkDeliveryInfo() {
         const addr = document.getElementById('addressInput');
         const addrError = addr ? addr.parentElement.querySelector('.error-msg') : null;
         
-        // 檢查縣市區域
         let isCityOk = city && city.value !== "";
         let isDistOk = district && district.value !== "";
         
         if (city) { isCityOk ? city.classList.remove('error') : city.classList.add('error'); }
         if (district) { isDistOk ? district.classList.remove('error') : district.classList.add('error'); }
 
-        // 檢查地址長度 (至少8字)
         let isAddrOk = false;
         if (addr && addr.value.trim().length >= 8) {
             showSuccess(addr, addrError);
@@ -422,7 +912,6 @@ function checkDeliveryInfo() {
         return isCityOk && isDistOk && isAddrOk;
 
     } else {
-        // 超商取貨驗證
         const store = document.getElementById('storeNameInput');
         const storeError = store ? store.parentElement.querySelector('.error-msg') : null;
         
@@ -437,15 +926,15 @@ function checkDeliveryInfo() {
     }
 }
 
-// E. 最終送出訂單
 function submitOrder() {
-    // 1. 檢查購物車
+    cart = JSON.parse(localStorage.getItem('pdk_cart')) || [];
+
     if (cart.length === 0) {
         alert("購物車是空的，無法結帳！");
         return;
     }
     
-    // 2. 執行所有自訂驗證
+    // 進行驗證
     const vEmail = checkEmail();
     const vName = checkName();
     const vPhone = checkPhone();
@@ -453,18 +942,16 @@ function submitOrder() {
     
     if (vEmail && vName && vPhone && vDelivery) {
         if(confirm("確定要送出訂單嗎？")) {
-            // 填入購物車資料並送出
-            document.getElementById('hiddenCartInput').value = JSON.stringify(cart);
+            // ★ 關鍵：送出前，把折扣資料同步到 Hidden Input
+            updateHiddenInputs();
+
             const form = document.getElementById('checkoutForm');
-            
-            // 為了配合 Flask 後端，設定 action 並送出
             form.action = "/submit_order";
             form.method = "POST";
             form.submit();
         }
     } else {
         alert("請檢查紅色標示的欄位是否填寫正確。");
-        // 滾動到第一個錯誤處
         const firstError = document.querySelector('.error');
         if(firstError) {
             firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });

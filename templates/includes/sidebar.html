@@ -2,8 +2,8 @@
 
 <div id="mySidenav" class="side-menu">
     
-    <div style="text-align: center; margin-bottom: 40px; ">
-        <h2 style="color: #fff; font-size: 2rem; margin: 0;">P . D . K</h2>
+    <div style="text-align: center; margin-bottom: 40px;">
+        <h2 onclick="window.location.href='{{ url_for('about') }}'" style="color: #fff; font-size: 2rem; margin: 0; cursor: pointer;">P . D . K</h2>
     </div>
 
     <button class="dropdown-btn">商品列表 Products 
@@ -16,19 +16,35 @@
         <a href="/category/otherproduct">其他產品 Others</a>
     </div>
 
-    <a href="#">最新活動 Active</a>
-    <a href="#">常見問題 FAQ</a>
-    <a href="#">聯絡我們 Contact</a>
+    <a href="{{ url_for('promotions') }}">最新活動 Active</a>
+    <a href="{{ url_for('faq') }}">常見問題 FAQ</a>
+    <a href="{{ url_for('contact') }}">聯絡我們 Contact</a>
 
     <div class="menu-section">
-        <div class="menu-section-title">帳戶 Account</div>
-        <a href="#">會員登入 Login</a>
-        <a href="#">會員註冊 Register</a>
-        <a href="#">訂單查詢 Order</a>
+        
+        {% if current_user.is_authenticated %}
+            <div class="menu-section-title user-greeting">
+                Hi, {{ current_user.name }}
+            </div>
+
+            <a href="{{ url_for('dashboard') }}">我的帳號 My Account</a>
+            <a href="{{ url_for('member') }}">我的資料 Myself</a>
+            <a href="{{ url_for('wishlist_page') }}">我的收藏 Wishlist</a>
+            <a href="{{ url_for('my_orders') }}">訂單資訊 Order Info</a>
+            <a href="{{ url_for('member_promotions') }}">會員活動 Events</a>
+            <a href="{{ url_for('logout') }}">登出 Logout</a>
+
+        {% else %}
+            <div class="menu-section-title">帳戶 Account</div>
+            
+            <a href="{{ url_for('login') }}">會員登入 Login</a>
+            <a href="{{ url_for('register') }}">會員註冊 Register</a>
+        {% endif %}
     </div>
 </div>
 
 <script>
+    /* 下拉選單功能 (維持原樣) */
     var dropdown = document.getElementsByClassName("dropdown-btn");
     var i;
 
@@ -50,26 +66,33 @@
         });
     }
 
-    // ★★★ 修改這裡：打開選單時，顯示遮罩 ★★★
+    /* ★★★ 修正後的側邊欄開關 (加入防滾動穿透) ★★★ */
     function openNav() {
-    // 1. 打開選單
-    document.getElementById("mySidenav").style.width = "280px"; 
-    
-    // 2. 顯示遮罩
-    var overlay = document.getElementById("menuOverlay");
-    overlay.classList.add("show");
-    
-    // 3. ★ 核心修正：確保點擊遮罩時會觸發 closeNav
-    overlay.onclick = function() {
-        closeNav();
-    };
-}
+        var menu = document.getElementById("mySidenav");
+        var overlay = document.getElementById("menuOverlay");
 
-function closeNav() {
-    // 1. 關閉選單
-    document.getElementById("mySidenav").style.width = "0";
-    
-    // 2. 隱藏遮罩
-    document.getElementById("menuOverlay").classList.remove("show");
-}
+        // 判斷：如果已經開著，就關閉 (Toggle 邏輯)
+        if (menu.style.width === "280px") {
+            closeNav();
+        } else {
+            // --- 開啟選單 ---
+            menu.style.width = "280px"; 
+            overlay.classList.add("show");
+            
+            // ★ 新增：鎖定背景滾動
+            document.body.classList.add('no-scroll');
+
+            // 確保點擊遮罩可以關閉
+            overlay.onclick = function() { closeNav(); };
+        }
+    }
+
+    function closeNav() {
+        // --- 關閉選單 ---
+        document.getElementById("mySidenav").style.width = "0";
+        document.getElementById("menuOverlay").classList.remove("show");
+        
+        // ★ 新增：解除背景鎖定 (恢復滾動)
+        document.body.classList.remove('no-scroll');
+    }
 </script>

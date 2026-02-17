@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>訂單記錄 | P.D.K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="bg-fixed-layer"></div>
+
+    <nav class="navbar" style="position: fixed; top: 0; width: 100%; background: transparent; z-index: 1000;">
+        <div class="menu-toggle" onclick="openNav()">&#9776;</div>
+        <a href="/" class="logo">P  D  K</a>
+        <div style="width: 30px;"></div>
+    </nav>
+
+    {% include 'includes/sidebar.html' ignore missing %}
+
+    <div class="member-container">
+        <h1 class="page-title">MY ORDERS</h1>
+        
+        {% if orders %}
+            {% for order in orders %}
+                <div class="order-card">
+                    <div class="order-header">
+                        <div class="order-info-group">
+                            <span class="order-no"># {{ order.order_no }}</span>
+                            <span class="order-date">
+                                <i class="far fa-calendar-alt"></i> {{ order.created_at.strftime('%Y-%m-%d') }}
+                            </span>
+                        </div>
+                        
+                        <span class="order-status status-{{ order.status }}">
+                            {% if order.status == 'pending' %} 待處理
+                            {% elif order.status == 'paid' %} 已付款
+                            {% elif order.status == 'shipped' %} 已出貨
+                            {% elif order.status == 'done' %} 已完成
+                            {% elif order.status == 'cancelled' %} 已取消
+                            {% else %} {{ order.status }}
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="order-footer">
+                        <div class="order-total">
+                            Total: NT$ {{ order.final_total }}
+                        </div>
+                        <button class="btn-toggle-details" onclick="toggleDetails(this)">
+                            查看明細 View Details <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
+
+                    <div class="order-details" style="display: none;">
+                        {% set items = order.cart_items | from_json %}
+                        
+                        {% if items %}
+                            {% for item in items %}
+                            <div class="item-row" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #222;">
+                                <div style="flex: 1;">
+                                    <span class="item-name" style="color: #ddd; font-size: 0.95rem;">{{ item.name }}</span>
+                                    <span class="item-qty" style="color: #888; font-size: 0.9rem; margin-left: 10px;">x{{ item.qty or item.quantity or item.count or 1 }}</span>
+                                </div>
+                                <div class="item-price" style="color: #fff; font-family: 'Times New Roman', serif;">
+                                    NT$ {{ (item.price|int) * (item.qty or item.quantity or item.count or 1)|int }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                            
+                            <div class="order-finance-summary" style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #444;">
+                                
+                                <div class="summary-line" style="display: flex; justify-content: space-between; font-size: 0.9rem; color: #aaa; margin-bottom: 5px;">
+                                    <span>商品小計 Subtotal</span>
+                                    <span>NT$ {{ order.total_amount }}</span>
+                                </div>
+
+                                <div class="summary-line" style="display: flex; justify-content: space-between; font-size: 0.9rem; color: #aaa; margin-bottom: 5px;">
+                                    <span>運費 Shipping</span>
+                                    <span>+ NT$ {{ order.shipping_fee }}</span>
+                                </div>
+
+                                {% if order.discount_amount and order.discount_amount > 0 %}
+                                    {% if order.discount_promo and order.discount_promo > 0 %}
+                                    <div class="summary-line" style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #28a745; margin-bottom: 2px; padding-left: 10px;">
+                                        <span>└ 優惠碼 Promo Code</span>
+                                        <span>- NT$ {{ order.discount_promo }}</span>
+                                    </div>
+                                    {% endif %}
+
+                                    {% if order.discount_voucher and order.discount_voucher > 0 %}
+                                    <div class="summary-line" style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #28a745; margin-bottom: 2px; padding-left: 10px;">
+                                        <span>└ 折扣券 Voucher</span>
+                                        <span>- NT$ {{ order.discount_voucher }}</span>
+                                    </div>
+                                    {% endif %}
+
+                                    {% if order.discount_member and order.discount_member > 0 %}
+                                    <div class="summary-line" style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #28a745; margin-bottom: 2px; padding-left: 10px;">
+                                        <span>└ 會員折扣 Member Discount</span>
+                                        <span>- NT$ {{ order.discount_member }}</span>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% set known_discounts = (order.discount_promo or 0) + (order.discount_voucher or 0) + (order.discount_member or 0) %}
+                                    {% set referral_discount = (order.discount_amount or 0) - known_discounts %}
+
+                                    {% if referral_discount > 0 %}
+                                    <div class="summary-line" style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #28a745; margin-bottom: 2px; padding-left: 10px;">
+                                        <span>└ 推薦碼折扣 Referral Discount</span>
+                                        <span>- NT$ {{ referral_discount }}</span>
+                                    </div>
+                                    {% endif %}
+                                    <div class="summary-line" style="display: flex; justify-content: space-between; font-size: 0.9rem; color: #28a745; margin-bottom: 5px; border-top: 1px dotted #333; margin-top: 5px; padding-top: 5px;">
+                                        <span>折扣總計 Discount Total</span>
+                                        <span>- NT$ {{ order.discount_amount }}</span>
+                                    </div>
+                                {% endif %}
+
+                                <div class="summary-line total" style="display: flex; justify-content: space-between; font-size: 1.1rem; color: #fff; font-weight: bold; margin-top: 10px; padding-top: 10px; border-top: 1px solid #333;">
+                                    <span>合計 Total</span>
+                                    <span style="font-family: 'Times New Roman', serif; color: #eeeeee;">NT$ {{ order.final_total }}</span>
+                                </div>
+                            </div>
+
+                        {% else %}
+                            <div style="color: #666; text-align: center; font-size: 0.9rem;">無法讀取商品明細</div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align: center; padding: 50px; color: #666;">
+                <i class="fas fa-box-open" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;"></i>
+                <p>您目前還沒有任何訂單記錄</p>
+                <a href="/" style="color: #fff; text-decoration: underline; margin-top: 10px; display: inline-block;">去逛逛商店 Shop Now</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function openNav() {
+            var menu = document.getElementById("mySidenav");
+            var overlay = document.getElementById("menuOverlay");
+            if (menu) {
+                menu.style.width = "280px";
+                if(overlay) overlay.classList.add("show");
+                document.body.classList.add('no-scroll');
+            }
+        }
+
+        function toggleDetails(btn) {
+            const card = btn.closest('.order-card');
+            const details = card.querySelector('.order-details');
+            
+            if (details.style.display === "block") {
+                details.style.display = "none";
+                btn.classList.remove("active");
+                btn.querySelector('i').style.transform = "rotate(0deg)";
+            } else {
+                details.style.display = "block";
+                btn.classList.add("active");
+                btn.querySelector('i').style.transform = "rotate(180deg)";
+            }
+        }
+    </script>
+</body>
+</html>

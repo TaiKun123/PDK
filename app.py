@@ -1,13 +1,17 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename # ★★★ 新增：處理檔案上傳的工具 ★★★
+from werkzeug.utils import secure_filename
 from sqlalchemy import or_
+from sqlalchemy import extract
+from flask_mail import Mail, Message
+from datetime import datetime, timedelta # 確保引入這兩個# ★★★ 新增：寄信模組
 import os
-import json      # 處理 JSON 資料
-import datetime  # 處理時間
-import random    # 處理隨機編號
+import json
+import datetime
+import random
+import string# ★★★ 新增：隨機數模組
 
 app = Flask(__name__)
 
@@ -18,6 +22,17 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///pdk.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'your_super_secret_key_change_this_in_production' 
 
+
+# ★★★ 新增：Gmail 寄信設定 ★★★
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'pdk.salon.office@gmail.com'  # 請確認這是您剛剛申請密碼的那個 Gmail 帳號
+app.config['MAIL_PASSWORD'] = 'ibxlwikvoolpemqw'      # ★★★ 您的應用程式密碼 (已去空白)
+app.config['MAIL_DEFAULT_SENDER'] = ('P.D.K Official', 'pdk.salon.office@gmail.com')
+
+mail = Mail(app) # 初始化 Mail 元件
+
 # ★★★ 新增：設定圖片上傳路徑 ★★★
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -26,6 +41,26 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# --- 工具函式：產生唯一推薦碼 ---
+def generate_unique_referral_code():
+    chars = string.ascii_uppercase + string.digits # 大寫英文 + 數字
+    while True:
+        code = ''.join(random.choices(chars, k=8))
+        # 檢查資料庫是否已經有人用過這組碼，如果有就重跑，直到唯一
+        if not User.query.filter_by(referral_code=code).first():
+            return code
+
+# ★★★ 新增：Jinja2 自定義過濾器 ★★★
+# 用於將資料庫中的 JSON 字串（cart_items）轉回列表，讓 HTML 可以用迴圈跑商品明細
+@app.template_filter('from_json')
+def from_json_filter(value):
+    if not value:
+        return []
+    try:
+        return json.loads(value)
+    except:
+        return []
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -43,8 +78,31 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(200), nullable=False)
     name = db.Column(db.String(100))
     phone = db.Column(db.String(20))
-    role = db.Column(db.String(20), default='customer') # 'admin' or 'customer'
+    address = db.Column(db.String(200))
+    store_info = db.Column(db.String(100))
+    role = db.Column(db.String(20), default='customer')
+    
+    # 時間欄位
     created_at = db.Column(db.DateTime, default=datetime.datetime.now)
+    
+    # --- 會員等級與消費紀錄 ---
+    member_tier = db.Column(db.String(20), default='General')  # Pure, Deep, Keep
+    total_spend = db.Column(db.Integer, default=0)          # 一年內累積消費
+    orders_count = db.Column(db.Integer, default=0)         # 一年內累積單數 (修正：只留這一個)
+    member_expiry = db.Column(db.DateTime, default=datetime.datetime.now) 
+    free_shipping_quota = db.Column(db.Integer, default=0)  # Keep 會員免運次數
+    
+    # --- 生日與推薦機制 ---
+    birthday = db.Column(db.Date, nullable=True)            # 生日
+    
+    referral_code = db.Column(db.String(20), unique=True)   # 自己的推薦碼
+    used_referral = db.Column(db.Boolean, default=False)    # 是否填過別人的碼
+    
+    # ★★★ 新增：紀錄是誰推薦了我 (解決報錯關鍵) ★★★
+    referrer_id = db.Column(db.Integer, nullable=True)      
+    
+    # 關聯
+    coupons = db.relationship('UserVoucher', backref='owner', lazy=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -60,27 +118,143 @@ class Product(db.Model):
     price = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text)
     image = db.Column(db.String(200)) # 新增：預留圖片路徑
+    tag_image = db.Column(db.String(200))  # ★★★ 新增：標籤介紹圖 ★★★
+    volume = db.Column(db.String(50))
+# ★★★ 新增：收藏清單模型 (Wishlist) ★★★
+class Wishlist(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    product_id = db.Column(db.String(50), db.ForeignKey('product.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now)
 
 # ★★★ 升級：訂單模型 (關聯使用者) ★★★
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     order_no = db.Column(db.String(50), unique=True, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # 新增：關聯會員 (Nullable 代表訪客也可買)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    
+    # ★★★ 新增：推薦人 ID (紀錄是誰介紹這筆訂單的) ★★★
+    referrer_id = db.Column(db.Integer, nullable=True) 
+
     customer_name = db.Column(db.String(50), nullable=False)
     customer_email = db.Column(db.String(100))
     customer_phone = db.Column(db.String(20))
     shipping_method = db.Column(db.String(20))
     address = db.Column(db.String(200))
     payment_method = db.Column(db.String(20))
+    
     total_amount = db.Column(db.Integer)
-    cart_items = db.Column(db.Text) 
+    discount_amount = db.Column(db.Integer, default=0)
+    
+    discount_promo = db.Column(db.Integer, default=0)   # 優惠碼折抵
+    discount_voucher = db.Column(db.Integer, default=0) # 優惠券折抵
+    discount_member = db.Column(db.Integer, default=0)  # 會員等級折抵
+    
+    shipping_fee = db.Column(db.Integer, default=100)
+    final_total = db.Column(db.Integer)         # 最終金額
+    
+    cart_items = db.Column(db.Text)
     status = db.Column(db.String(20), default='pending')
+    
     created_at = db.Column(db.DateTime, default=datetime.datetime.now)
+    paid_at = db.Column(db.DateTime, nullable=True) # 付款時間
+
+    # 建立關聯 (方便查詢下單者)
+    user = db.relationship('User', foreign_keys=[user_id], backref='orders')
+    
+# ==============================================================================
+# ★★★ 新增區塊 1：優惠券相關模型 (Coupon Models) ★★★
+# ==============================================================================
+
+class Coupon(db.Model):
+    __tablename__ = 'coupon'
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False) # 優惠碼 (例如: VIP888)
+    name = db.Column(db.String(50), nullable=False)              # 優惠券名稱 (例如: 新客首購禮)
+    
+    # 折扣類型: 'fixed' (折抵現金) / 'percent' (打折)
+    discount_type = db.Column(db.String(10), nullable=False) 
+    
+    # 數值: 若 fixed 存 100 (折100元); 若 percent 存 10 (打9折/折10%)
+    discount_value = db.Column(db.Integer, nullable=False) 
+    
+    min_spend = db.Column(db.Integer, default=0) # 最低消費門檻
+    
+    # 期限設定
+    start_date = db.Column(db.DateTime, default=datetime.datetime.now)
+    end_date = db.Column(db.DateTime, nullable=True) # 若為 Null 代表永久有效
+    
+    # 數量限制
+    usage_limit = db.Column(db.Integer, default=999999) # 全站總共可被用幾次
+    used_count = db.Column(db.Integer, default=0)       # 已經被使用幾次
+    
+    # ★ 單人限制：0 代表不限，1 代表每人限用一次
+    per_user_limit = db.Column(db.Integer, default=1) 
+    
+    is_active = db.Column(db.Boolean, default=True) # 手動開關
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now)
+
+class CouponUsage(db.Model):
+    __tablename__ = 'coupon_usage'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    coupon_id = db.Column(db.Integer, db.ForeignKey('coupon.id'), nullable=False)
+    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
+    used_at = db.Column(db.DateTime, default=datetime.datetime.now)
 
 # Flask-Login 載入使用者
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# ★★★ 新增：全域變數注入 (讓所有模板都能拿到收藏清單) ★★★
+@app.context_processor
+def inject_wishlist():
+    if current_user.is_authenticated:
+        # 抓取該使用者的所有收藏
+        wishes = Wishlist.query.filter_by(user_id=current_user.id).all()
+        # 回傳 ID 列表，例如 ['sh_001', 'hc_002']
+        return {'current_user_wishlist_ids': [w.product_id for w in wishes]}
+    return {'current_user_wishlist_ids': []}
+
+# ----------------------
+# 5. 折扣券定義表 (升級版)
+# ----------------------
+class Voucher(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(50), nullable=False)        # 券名
+    discount_value = db.Column(db.Integer, nullable=False)      # 折扣金額
+    voucher_type = db.Column(db.String(20), default='activity') # activity(互斥) / reward(可疊加)
+    
+    # ★ 新增：最低消費門檻 (0 代表不限制)
+    min_spend = db.Column(db.Integer, default=0)
+    
+    # ★ 新增：發放後的有效天數 (例如: 領取後 30 天內有效)
+    valid_days = db.Column(db.Integer, default=30)
+    
+    # ★ 新增：活動上架期間 (例如: 只有 2/14 ~ 2/16 可以領這張券)
+    start_time = db.Column(db.DateTime, nullable=True)
+    end_time = db.Column(db.DateTime, nullable=True)
+    
+    description = db.Column(db.String(200)) # 備註說明
+    is_active = db.Column(db.Boolean, default=True)
+
+# ----------------------
+# 6. ★新增★ 會員持有折扣券表 (UserVoucher)
+#    用途：記錄哪個會員擁有了哪張券 (歸戶)
+# ----------------------
+class UserVoucher(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    voucher_id = db.Column(db.Integer, db.ForeignKey('voucher.id'), nullable=False)
+    
+    is_used = db.Column(db.Boolean, default=False)      # 是否已使用
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now)  # 獲得時間
+    expiry_date = db.Column(db.DateTime, nullable=True) # 到期日 (可選)
+
+    # 建立關聯，方便查詢
+    voucher = db.relationship('Voucher') 
+    # 讓 User 表格也能反向查到 (需配合 User 表格的修改，或直接用查詢語法)
 
 # ==============================================================================
 # 3. 初始化 (Seeds) - 自動建立資料
@@ -115,6 +289,168 @@ def create_initial_data():
         ]
         db.session.add_all(products)
         db.session.commit()
+def create_default_vouchers():
+    """
+    初始化資料庫：如果沒有這些折扣券，就自動建立。
+    ★ 修改：更新為系統實際使用的名稱 (Pure/Deep/Keep)
+    """
+    
+    # 定義要建立的券清單 (這是修正後的正確版本)
+    default_vouchers = [
+        # --- 1. 生日禮金系列 (配合系統自動發放的名稱) ---
+        {
+            "title": "Pure 會員生日禮",  # 改成這個名字
+            "discount_value": 150,
+            "voucher_type": "activity",  
+            "min_spend": 0,
+            "valid_days": 365,
+            "description": "祝您生日快樂！Pure 會員專屬禮金"
+        },
+        {
+            "title": "Deep 會員生日禮",  # 改成這個名字
+            "discount_value": 200,
+            "voucher_type": "activity",
+            "min_spend": 0,
+            "valid_days": 365,
+            "description": "祝您生日快樂！Deep 會員專屬禮金"
+        },
+        {
+            "title": "Keep 會員生日禮",  # 改成這個名字
+            "discount_value": 300,
+            "voucher_type": "activity",
+            "min_spend": 0,
+            "valid_days": 365,
+            "description": "祝您生日快樂！Keep 會員專屬禮金"
+        },
+
+        # --- 2. 推薦獎勵券 ---
+        {
+            "title": "好友推薦獎勵",     # 改成這個名字
+            "discount_value": 100,
+            "voucher_type": "reward",   # 獎勵券 (可疊加)
+            "min_spend": 500,
+            "valid_days": 365,
+            "description": "感謝您的推薦！這是給您的獎勵"
+        }
+    ]
+
+    print("--- 開始檢查/建立預設折扣券 (Vouchers) ---")
+    
+    for data in default_vouchers:
+        # 使用 title (券名) 來檢查是否已經存在
+        existing = Voucher.query.filter_by(title=data['title']).first()
+        
+        if not existing:
+            print(f"正在建立: {data['title']} (${data['discount_value']})")
+            
+            new_voucher = Voucher(
+                title=data['title'],
+                discount_value=data['discount_value'],
+                voucher_type=data['voucher_type'],
+                min_spend=data['min_spend'],
+                valid_days=data['valid_days'],
+                description=data.get('description', ''),
+                is_active=True,
+                start_time=None,
+                end_time=None
+            )
+            db.session.add(new_voucher)
+        else:
+            print(f"已存在，跳過: {data['title']}")
+
+    try:
+        db.session.commit()
+        print("--- 預設折扣券初始化完成 ---")
+    except Exception as e:
+        db.session.rollback()
+        print(f"建立折扣券失敗: {e}")
+
+# ---------------------------------------------------
+# ★★★ P.D.K 核心算錢大腦 (含推薦碼折抵) ★★★
+# ---------------------------------------------------
+def calculate_order_price(user, cart_items, selected_user_vouchers=[], promo_code_obj=None, shipping_method='home', referral_code=None):
+    
+    # 1. 商品小計
+    subtotal = 0
+    for item in cart_items:
+        price = int(item.get('price', 0))
+        qty = int(item.get('quantity') or item.get('count') or item.get('qty') or 1)
+        subtotal += price * qty
+    
+    # 2. 計算折扣細項
+    
+    # A. 優惠碼 (Promo Code)
+    val_promo = promo_code_obj.discount_value if promo_code_obj else 0
+    
+    # B. 優惠券 (Vouchers)
+    voucher_cap = 600 if subtotal >= 1500 else 300
+    raw_voucher_sum = 0
+    for uv in selected_user_vouchers:
+        if subtotal >= uv.voucher.min_spend: 
+            raw_voucher_sum += uv.voucher.discount_value
+    
+    val_voucher = min(raw_voucher_sum, voucher_cap)
+
+    # ★★★ C. 推薦碼 (Referral Code) - 新增邏輯 ★★★
+    val_referral = 0
+    valid_referrer = None
+    
+    # 只有當用戶「還沒用過推薦碼」且「有輸入代碼」時才檢查
+    if user.is_authenticated and not user.used_referral and referral_code:
+        # 尋找代碼的主人
+        referrer = User.query.filter_by(referral_code=referral_code).first()
+        
+        # 驗證：代碼存在 且 不是自己推薦自己
+        if referrer and referrer.id != user.id:
+            val_referral = 50 # 推薦碼現折 50 元
+            valid_referrer = referrer
+
+    # D. 現金折抵總額 (優惠碼 + 優惠券 + 推薦碼) - 不能超過商品總額
+    cash_discount_total = min(val_promo + val_voucher + val_referral, subtotal)
+    
+    # 3. 會員等級折扣 (Member Tier)
+    # 是用「扣除現金折抵後」的餘額來計算 % 數
+    remaining_amount = subtotal - cash_discount_total
+    if remaining_amount < 0:
+        remaining_amount = 0
+    val_member = 0
+    
+    if user.is_authenticated:
+        if user.member_tier == 'Keep':
+            val_member = int(remaining_amount * 0.10) # 9折
+        elif user.member_tier == 'Deep':
+            val_member = int(remaining_amount * 0.05) # 95折
+            
+    # 4. 運費計算
+    shipping_fee = 0
+    original_shipping = 100 if shipping_method == 'home' else 40
+    shipping_fee = original_shipping
+    
+    if subtotal >= 2000:
+        shipping_fee = 0
+    elif user.is_authenticated:
+        if user.member_tier == 'Deep' and shipping_method == 'store':
+            shipping_fee = 0
+        elif user.member_tier == 'Keep' and user.free_shipping_quota > 0:
+            shipping_fee = 0
+
+    # 5. 最終金額
+    total_discount = cash_discount_total + val_member
+    final_total = subtotal - total_discount + shipping_fee
+    
+    return {
+        'subtotal': subtotal,
+        'final_total': max(int(final_total), 1),
+        'shipping_fee': shipping_fee,
+        'discount_total': total_discount,
+        
+        # 詳細拆帳數據
+        'val_promo': val_promo,
+        'val_voucher': val_voucher,
+        'val_referral': val_referral, # 回傳推薦碼折多少
+        'val_member': val_member,
+        'referrer_obj': valid_referrer # 回傳推薦人物件
+    }
 
 # ==============================================================================
 # 4. 前台路由 (Frontend Routes)
@@ -122,6 +458,19 @@ def create_initial_data():
 @app.route('/')
 def home():
     return render_template('index.html')
+
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
+@app.route('/member_promotions')
+def member_promotions():
+    return render_template('member_promotions.html')
+
+# --- 最新活動頁面 ---
+@app.route('/promotions')
+def promotions():
+    return render_template('promotions.html')
 
 @app.route('/shampoo')
 def shampoo_page():
@@ -141,117 +490,1172 @@ def category_page(cat_name):
     products = Product.query.filter_by(category=cat_name).all()
     return render_template('shampoo.html', products=products, page_info=page_info)
 
+# ★★★ 修改這裡：改成讀取資料庫，並使用通用模版 ★★★
 @app.route('/product/<product_id>')
 def product_page(product_id):
-    return render_template(f'product/{product_id}.html')
+    # 去資料庫抓這個商品，抓不到會回傳 404
+    product = Product.query.get_or_404(product_id)
+    # 傳給通用的 product_detail.html
+    return render_template('product_detail.html', product=product)
 
+# ----------------------
+# 結帳頁面 (修改：傳送折扣券資料給前端)
+# ----------------------
 @app.route('/checkout')
+@login_required  # ★ 強制登入才能結帳
 def checkout_page():
-    return render_template('checkout.html')
-
-@app.route('/submit_order', methods=['POST'])
-def submit_order():
-    name = request.form.get('name')
-    email = request.form.get('email')
-    phone = request.form.get('phone')
-    shipping_method = request.form.get('shipping_method')
-    payment_method = request.form.get('payment_method')
-
-    address = ""
-    if shipping_method == 'home':
-        city = request.form.get('city') or ""
-        district = request.form.get('district') or ""
-        addr_detail = request.form.get('address') or ""
-        address = f"{city}{district}{addr_detail}"
-    elif shipping_method == 'store':
-        store_name = request.form.get('store_name') or "未指定"
-        store_id = request.form.get('store_id')
-        address = f"7-11 門市：{store_name}" + (f" ({store_id})" if store_id else "")
-
-    cart_data_str = request.form.get('cart_data')
-    try:
-        discount = int(request.form.get('discount', 0))
-    except:
-        discount = 0
-
-    cart_items = []
-    total_price = 0
-    try:
-        if cart_data_str:
-            cart_items = json.loads(cart_data_str)
-            for item in cart_items:
-                p = int(item.get('price', 0))
-                q = int(item.get('qty', 0))
-                total_price += p * q
-    except:
-        cart_items = []
-
-    shipping_fee = 100 if shipping_method == 'home' else 40
-    total_price += shipping_fee
-    total_price -= discount
-    if total_price < 0: total_price = 0
-
-    date_str = datetime.datetime.now().strftime("%Y%m%d")
-    rand_num = random.randint(1000, 9999)
-    order_id = f"PDK-{date_str}-{rand_num}"
-
-    # ★★★ 修改：若有登入會員，記錄 user_id ★★★
-    user_id = current_user.id if current_user.is_authenticated else None
-
-    new_order = Order(
-        order_no=order_id,
-        user_id=user_id,
-        customer_name=name,
-        customer_email=email,
-        customer_phone=phone,
-        shipping_method=shipping_method,
-        address=address,
-        payment_method=payment_method,
-        total_amount=total_price,
-        cart_items=json.dumps(cart_items, ensure_ascii=False),
-        status='pending'
-    )
+    # 1. 抓取會員「未使用」且「未過期」的折扣券
+    my_vouchers = []
+    now = datetime.datetime.now()
     
+    # 搜尋該使用者的 UserVoucher，且 is_used=False
+    raw_vouchers = UserVoucher.query.filter_by(user_id=current_user.id, is_used=False).all()
+    
+    for uv in raw_vouchers:
+        # A. 檢查是否過期
+        if uv.expiry_date and uv.expiry_date < now:
+            continue
+        # B. 檢查 Voucher 定義檔是否還上架中
+        if not uv.voucher.is_active:
+            continue
+            
+        # C. 轉換成字典格式 (因為 SQLAlchemy 物件不能直接轉 JSON 給前端 JS 用)
+        my_vouchers.append({
+            'id': uv.id,
+            'expiry_date': uv.expiry_date.strftime('%Y-%m-%d') if uv.expiry_date else '永久',
+            'voucher': {
+                'title': uv.voucher.title,
+                'voucher_type': uv.voucher.voucher_type,
+                'min_spend': uv.voucher.min_spend,
+                'discount_value': uv.voucher.discount_value
+            }
+        })
+
+    # 2. 回傳頁面 (將 vouchers 傳進去)
+    return render_template('checkout.html', vouchers=my_vouchers)
+
+# ★★★ 新增：處理「點擊愛心」的動作 (AJAX) ★★★
+@app.route('/toggle_wishlist', methods=['POST'])
+@login_required
+def toggle_wishlist():
+    data = request.get_json()
+    p_id = data.get('product_id')
+    
+    # 檢查是否已收藏
+    wish = Wishlist.query.filter_by(user_id=current_user.id, product_id=p_id).first()
+    
+    if wish:
+        db.session.delete(wish) # 已收藏 -> 移除
+        action = 'removed'
+    else:
+        new_wish = Wishlist(user_id=current_user.id, product_id=p_id) # 未收藏 -> 新增
+        db.session.add(new_wish)
+        action = 'added'
+        
+    db.session.commit()
+    return jsonify({'success': True, 'action': action})
+
+# ★★★ 新增：「我的收藏」頁面 (共用 shampoo.html 模板) ★★★
+@app.route('/wishlist')
+@login_required
+def wishlist_page():
+    # 1. 找出該使用者的所有收藏紀錄
+    wishes = Wishlist.query.filter_by(user_id=current_user.id).all()
+    p_ids = [w.product_id for w in wishes]
+    
+    # 2. 如果有收藏，去 Product 資料表抓出這些商品的完整資料
+    if p_ids:
+        products = Product.query.filter(Product.id.in_(p_ids)).all()
+    else:
+        products = []
+        
+    # 3. 設定頁面標題，並重用 shampoo.html
+    page_info = {'title_zh': '我的收藏', 'title_en': 'MY WISHLIST'}
+    
+    # 傳入 is_wishlist_page=True，方便前端做特殊處理
+    return render_template('shampoo.html', products=products, page_info=page_info, is_wishlist_page=True)
+
+# ==============================================================================
+# ★★★ 新增：Email 寄送輔助函式 (放在路由之前) ★★★
+# ==============================================================================
+
+def send_order_confirmation_email(order):
+    """發送訂單成立通知信"""
     try:
-        db.session.add(new_order)
-        db.session.commit()
+        # 將 JSON 字串轉回 List，這樣模板才能用迴圈跑
+        items = json.loads(order.cart_items)
+        
+        # 計算運費 (如果資料庫沒存運費欄位，這裡簡單反推：總額 - 商品總和)
+        products_total = sum(item['price'] * item['qty'] for item in items)
+        # 這裡加一個 getattr 避免出錯，若您未來有加入 discount 欄位
+        discount = int(getattr(order, 'discount', 0) if hasattr(order, 'discount') else 0)
+        order.shipping_fee = order.total_amount - products_total + discount
+
+        msg = Message(f"【P.D.K】訂單確認通知 (編號：{order.order_no})",
+                      recipients=[order.customer_email])
+        
+        # 渲染 HTML 模板
+        msg.html = render_template('email/order_confirmation.html', order=order, items=items)
+        mail.send(msg)
+        print(f"訂單 {order.order_no} 確認信已發送")
     except Exception as e:
-        print(f"存檔失敗: {e}")
+        print(f"訂單確認信發送失敗: {e}")
+
+def send_shipping_notification_email(order):
+    """發送出貨通知信"""
+    try:
+        msg = Message(f"【P.D.K】商品出貨通知 (編號：{order.order_no})",
+                      recipients=[order.customer_email])
+        msg.html = render_template('email/shipping_notification.html', order=order)
+        mail.send(msg)
+        print(f"訂單 {order.order_no} 出貨信已發送")
+    except Exception as e:
+        print(f"出貨通知信發送失敗: {e}")
+
+def send_merchant_new_order_email(order):
+    """發送新訂單通知給商家 (自己)"""
+    try:
+        # 將 JSON 字串轉回 List
+        items = json.loads(order.cart_items)
+        
+        # 設定收件人為「官方信箱 (自己)」
+        merchant_email = app.config['MAIL_USERNAME'] # 也就是 pdk.salon.office@gmail.com
+        
+        msg = Message(f"【新訂單】#{order.order_no} - {order.customer_name} - ${order.total_amount}",
+                      recipients=[merchant_email]) # 寄給自己
+        
+        # 渲染 HTML 模板
+        msg.html = render_template('email/new_order_notification.html', order=order, items=items)
+        mail.send(msg)
+        print(f"商家通知信已發送 (訂單 {order.order_no})")
+    except Exception as e:
+        print(f"商家通知信發送失敗: {e}")
+
+# 修改後的 send_voucher_notification_email
+def send_voucher_notification_email(user, voucher_title, amount, description):
+    try:
+        msg = Message(f"【P.D.K】恭喜獲得 ${amount} 折扣券！",
+                      recipients=[user.email])
+        
+        # 使用 render_template 或直接寫 HTML 字串
+        msg.html = f"""
+        <html>
+        <body>
+            <h2>恭喜您獲得專屬優惠！</h2>
+            <p>親愛的 {user.name} 您好，</p>
+            <p>我們已將一張 <b>{voucher_title}</b> 存入您的帳戶。</p>
+            <p>折抵金額：NT$ {amount}</p>
+            <p>說明：{description}</p>
+            <a href="{url_for('home', _external=True)}">立即使用</a>
+        </body>
+        </html>
+        """
+        mail.send(msg) # 使用全域的 mail 物件
+        print(f"折扣券通知信已寄送至 {user.email}")
+    except Exception as e:
+        print(f"寄送折扣券通知信失敗: {e}")
+
+# ==============================================================================
+# ★★★ 新增區塊 2：優惠券檢查 API (給前端 JS 呼叫) ★★★
+# ==============================================================================
+
+@app.route('/api/check_coupon', methods=['POST'])
+def check_coupon():
+    # 1. 檢查是否登入
+    if not current_user.is_authenticated:
+        return jsonify({'success': False, 'message': '請先登入會員即可使用優惠券'})
+
+    data = request.get_json()
+    code = data.get('code', '').upper().strip()
+    cart_total = int(data.get('amount', 0)) # 前端傳來的商品小計
+
+    coupon = Coupon.query.filter_by(code=code).first()
+    
+    # 2. 檢查基本存在與啟用
+    if not coupon:
+        return jsonify({'success': False, 'message': '優惠碼不存在'})
+    if not coupon.is_active:
+        return jsonify({'success': False, 'message': '此優惠活動已結束'})
+
+    # 3. 檢查日期
+    now = datetime.datetime.now()
+    if coupon.start_date and now < coupon.start_date:
+        return jsonify({'success': False, 'message': '優惠活動尚未開始'})
+    if coupon.end_date and now > coupon.end_date:
+        return jsonify({'success': False, 'message': '優惠券已過期'})
+
+    # 4. 檢查全站總數量
+    if coupon.used_count >= coupon.usage_limit:
+        return jsonify({'success': False, 'message': '此優惠券已被兌換完畢'})
+
+    # 5. ★ 檢查個人使用次數 (查詢 CouponUsage 表)
+    if coupon.per_user_limit > 0:
+        user_usage = CouponUsage.query.filter_by(user_id=current_user.id, coupon_id=coupon.id).count()
+        if user_usage >= coupon.per_user_limit:
+            return jsonify({'success': False, 'message': '您已使用過此優惠券，無法重複使用'})
+
+    # 6. 檢查最低消費門檻 (提供精確提示)
+    if cart_total < coupon.min_spend:
+        diff = coupon.min_spend - cart_total
+        return jsonify({'success': False, 'message': f'未達使用門檻，再消費 NT${diff} 即可使用！'})
+
+    # 7. 計算折扣
+    discount_amount = 0
+    if coupon.discount_type == 'fixed':
+        discount_amount = coupon.discount_value
+    elif coupon.discount_type == 'percent':
+        # 例如 10 代表 10% off (打九折) -> 折扣 = 總價 * 0.1
+        discount_amount = int(cart_total * (coupon.discount_value / 100))
+
+    # 避免折扣大於總金額
+    if discount_amount > cart_total:
+        discount_amount = cart_total
+
+    return jsonify({
+        'success': True,
+        'discount_amount': discount_amount,
+        'message': f'優惠券已套用！折抵 NT${discount_amount}'
+    })
+
+# ---------------------------------------------------
+# ★★★ 會員等級檢查與更新機制 ★★★
+# ---------------------------------------------------
+
+def check_membership_upgrade(user):
+    # 1. 撈出該用戶「有效」的訂單
+    # 只計算「已付款、已出貨、已完成」
+    valid_statuses = ['paid', 'shipped', 'done']
+    
+    valid_orders = Order.query.filter(
+        Order.user_id == user.id,
+        Order.status.in_(valid_statuses)
+    ).all()
+
+    # 2. 計算累積數據
+    # 規則：消費金額 = 實付總額 (final_total) - 運費 (shipping_fee)
+    current_spend = 0
+    for order in valid_orders:
+        final = order.final_total or 0
+        shipping = order.shipping_fee or 0
+        # 確保不會變成負數
+        item_spend = max(0, final - shipping)
+        current_spend += item_spend
+
+    current_order_count = len(valid_orders)
+
+    # 3. 更新用戶數據庫 (即時更新顯示)
+    user.total_spend = current_spend
+    user.orders_count = current_order_count
+
+    # 4. 判斷新等級 (由最高級往下判斷)
+    new_tier = 'General' # 預設
+
+    # Keep: 滿5000元 或 滿5單
+    if current_spend >= 5000 or current_order_count >= 5:
+        new_tier = 'Keep'
+    # Deep: 滿2500元
+    elif current_spend >= 2500:
+        new_tier = 'Deep'
+    # Pure: 只要有 1 單有效訂單
+    elif current_order_count >= 1:
+        new_tier = 'Pure'
+        
+    # 5. 執行升降級邏輯
+    old_tier = user.member_tier  # ★ 先記住舊等級，用於比較
+
+    if old_tier != new_tier:
+        print(f"用戶 {user.name} 等級變更: {old_tier} -> {new_tier}")
+
+        # --- A. 處理免運額度 ---
+        # 升級到 Keep (發放 5 次免運)
+        if new_tier == 'Keep' and old_tier != 'Keep':
+            # 只有當目前沒有額度時才補滿，避免重複觸發
+            if user.free_shipping_quota == 0:
+                user.free_shipping_quota = 5
+        
+        # 從 Keep 降級 (收回免運)
+        if old_tier == 'Keep' and new_tier != 'Keep':
+            user.free_shipping_quota = 0
+            
+        # --- B. 更新等級與效期 ---
+        user.member_tier = new_tier
+        # 升級或變更後，效期展延一年
+        user.member_expiry = datetime.datetime.now() + datetime.timedelta(days=365)
+
+        # --- C. 自動產生推薦碼 (流水號格式) ---
+        if new_tier in ['Pure', 'Deep', 'Keep'] and not user.referral_code:
+            user.referral_code = f"PDK-{user.id:06d}"
+            print(f"已產生推薦碼: {user.referral_code}")
+
+        # --- D. ★★★ 新增：升級時順便檢查並補發生日禮金 ★★★ ---
+        # 條件：升級到有資格的等級 + 有設定生日 + 生日是這個月
+        if new_tier in ['Pure', 'Deep', 'Keep'] and user.birthday:
+            today = datetime.date.today()
+            if user.birthday.month == today.month:
+                
+                # 定義各等級金額
+                rewards = {'Pure': 150, 'Deep': 200, 'Keep': 300}
+                amount = rewards.get(new_tier, 0)
+                
+                if amount > 0:
+                    # 1. 找券的母本，沒有就自動建立 (防呆)
+                    v_title = f"{new_tier} 會員生日禮"
+                    voucher = Voucher.query.filter_by(title=v_title).first()
+                    
+                    if not voucher:
+                        print(f"建立缺少的生日券母本: {v_title}")
+                        voucher = Voucher(
+                            title=v_title,
+                            discount_value=amount,
+                            voucher_type='activity',
+                            min_spend=0,
+                            valid_days=365,
+                            description=f'祝您生日快樂！{new_tier} 會員專屬禮金'
+                        )
+                        db.session.add(voucher)
+                        db.session.flush() # 取得 ID
+
+                    # 2. 檢查「今年」是否已經領過這張券 (避免重複發)
+                    # 邏輯：檢查 360 天內是否有領過同一個 ID 的券
+                    check_start = datetime.datetime.now() - datetime.timedelta(days=360)
+                    has_received = UserVoucher.query.filter(
+                        UserVoucher.user_id == user.id,
+                        UserVoucher.voucher_id == voucher.id,
+                        UserVoucher.created_at >= check_start
+                    ).first()
+
+                    if not has_received:
+                        print(f"★ {user.name} 升級且為當月壽星，補發生日禮金！")
+                        new_uv = UserVoucher(
+                            user_id=user.id,
+                            voucher_id=voucher.id,
+                            expiry_date=datetime.datetime.now() + datetime.timedelta(days=365)
+                        )
+                        db.session.add(new_uv)
+                        # 這裡可以視需求呼叫寄信函式
+
+    db.session.commit()
+# ----------------------
+# 提交訂單路由 (Final Fix)
+# ----------------------
+@app.route('/submit_order', methods=['POST'])
+@login_required 
+def submit_order():
+    try:
+        # 1. 接收資料
+        name = request.form.get('name')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        shipping_method = request.form.get('shipping_method')
+        payment_method = request.form.get('payment_method')
+        
+        # 2. 折扣與推薦碼
+        raw_code = request.form.get('promo_code')
+        promo_code_str = raw_code.strip().upper() if raw_code else None
+        voucher_ids_str = request.form.get('selected_vouchers') 
+        
+        referral_code_input = request.form.get('referral_code')
+        if referral_code_input:
+            referral_code_input = referral_code_input.strip()
+
+        # 3. 購物車與地址
+        cart_data_str = request.form.get('cart_data')
+        cart_items = json.loads(cart_data_str) if cart_data_str else []
+        
+        address = ""
+        if shipping_method == 'home':
+            city = request.form.get('city') or ""
+            district = request.form.get('district') or ""
+            addr_detail = request.form.get('address') or ""
+            address = f"{city}{district}{addr_detail}"
+        elif shipping_method == 'store':
+            store_name = request.form.get('store_name') or "未指定"
+            address = f"7-11 門市：{store_name}"
+
+        # 準備物件
+        valid_promo_obj = None
+        if promo_code_str:
+            c = Coupon.query.filter_by(code=promo_code_str).first()
+            if c and c.is_active:
+                valid_promo_obj = c
+
+        selected_user_vouchers = []
+        if voucher_ids_str:
+            v_ids = voucher_ids_str.split(',') 
+            for vid in v_ids:
+                if vid.isdigit():
+                    uv = UserVoucher.query.get(int(vid))
+                    if uv and uv.user_id == current_user.id and not uv.is_used:
+                        selected_user_vouchers.append(uv)
+
+        # 4. ★★★ 呼叫算錢大腦 ★★★
+        result = calculate_order_price(
+            user=current_user,
+            cart_items=cart_items,
+            selected_user_vouchers=selected_user_vouchers,
+            promo_code_obj=valid_promo_obj,
+            shipping_method=shipping_method,
+            referral_code=referral_code_input 
+        )
+        
+        # 5. 扣除免運次數
+        if result['shipping_fee'] == 0 and result['subtotal'] < 2000:
+            if current_user.member_tier == 'Keep' and current_user.free_shipping_quota > 0:
+                current_user.free_shipping_quota -= 1
+
+        # 6. 建立訂單
+        date_str = datetime.datetime.now().strftime("%Y%m%d")
+        rand_num = random.randint(1000, 9999)
+        order_no = f"PDK-{date_str}-{rand_num}"
+
+        # ★★★ 修正點：統一使用 result 回傳的推薦人 (避免邏輯不一致) ★★★
+        valid_referrer = result.get('referrer_obj')
+
+        new_order = Order(
+            order_no=order_no,
+            user_id=current_user.id,
+            customer_name=name,
+            customer_email=email,
+            customer_phone=phone,
+            shipping_method=shipping_method,
+            address=address,
+            payment_method=payment_method,
+            
+            total_amount=result['subtotal'],
+            shipping_fee=result['shipping_fee'],
+            discount_amount=result['discount_total'],
+            final_total=result['final_total'],
+            
+            discount_promo=result['val_promo'],
+            discount_voucher=result['val_voucher'],
+            discount_member=result['val_member'],
+            
+            # 這裡只記錄推薦人，不發獎勵
+            referrer_id=valid_referrer.id if valid_referrer else None,
+            cart_items=json.dumps(cart_items, ensure_ascii=False),
+            status='pending'
+        )
+
+        db.session.add(new_order)
+        db.session.flush()
+
+        # 7. 核銷優惠券與代碼
+        if valid_promo_obj:
+            usage = CouponUsage(user_id=current_user.id, coupon_id=valid_promo_obj.id, order_id=new_order.id)
+            valid_promo_obj.used_count += 1
+            db.session.add(usage)
+
+        for uv in selected_user_vouchers:
+            uv.is_used = True
+        
+        # ★★★ 標記用戶已使用過推薦 (只能用一次) ★★★
+        if valid_referrer:
+            current_user.used_referral = True
+
+        db.session.commit()
+
+        # 8. 檢查升級
+        try:
+            check_membership_upgrade(current_user)
+        except:
+            pass
+        
+        try:
+
+            print("正在嘗試寄送訂單確認信...")
+
+            send_order_confirmation_email(new_order)
+
+            send_merchant_new_order_email(new_order)
+
+        except Exception as e:
+
+            print(f"寄信失敗，但訂單已建立。錯誤原因: {e}")
+        
+        return render_template('order_success.html', 
+                               order_id=order_no, 
+                               name=name, 
+                               final_total=result['final_total'],
+                               payment_method=payment_method,
+                               order=new_order)
+
+    except Exception as e:
+        print(f"Submit Order Error: {e}")
         db.session.rollback()
+        return f"訂單建立失敗: {str(e)}", 500
 
-    return render_template('order_success.html', order_id=order_id, name=name, payment_method=payment_method)
+@app.route('/api/check_referral', methods=['POST'])
+@login_required
+def check_referral():
+    data = request.get_json()
+    code = data.get('code', '').strip()
+    
+    # 1. 基本檢查
+    if not code:
+        return jsonify({'valid': False, 'msg': '請輸入推薦碼'})
+    
+    # 2. 檢查是否已經使用過 (一生一次)
+    if current_user.used_referral:
+        return jsonify({'valid': False, 'msg': '您已經使用過好友推薦優惠了'})
+        
+    # 3. 檢查是否是自己的碼
+    if current_user.referral_code == code:
+        return jsonify({'valid': False, 'msg': '不能使用自己的推薦碼'})
 
+    # 4. 查詢資料庫是否存在此碼
+    referrer = User.query.filter_by(referral_code=code).first()
+    
+    if referrer:
+        return jsonify({'valid': True, 'msg': '推薦碼有效！折抵 $50'})
+    else:
+        return jsonify({'valid': False, 'msg': '無效的推薦碼'})
 
 # ==============================================================================
 # 5. 會員與後台路由 (Auth & Admin Routes)
 # ==============================================================================
 
-# 登入頁面 (前台會員 & 後台管理員共用)
+# ★★★ 新增：AJAX 傳送驗證碼 API ★★★
+@app.route('/send_verification_code', methods=['POST'])
+def send_verification_code():
+    data = request.get_json()
+    email = data.get('email')
+    
+    if not email:
+        return jsonify({'success': False, 'message': '請輸入 Email'})
+    
+    # 檢查 Email 是否已註冊
+    if User.query.filter_by(email=email).first():
+        return jsonify({'success': False, 'message': '此 Email 已經註冊過了，請直接登入'})
+
+    # 產生 6 位數驗證碼
+    code = str(random.randint(100000, 999999))
+    
+    # 將驗證碼存入 Session (暫存伺服器記憶體中)
+    session['verification_code'] = code
+    session['verification_email'] = email # 綁定這個 Email，防止他用 A 驗證卻註冊 B
+
+    try:
+        # 寄信內容
+        msg = Message("【P.D.K】您的註冊驗證碼", recipients=[email])
+        msg.body = f"""
+親愛的顧客您好，
+
+歡迎加入 P.D.K 會員！
+您的註冊驗證碼為：{code}
+
+請在註冊頁面輸入此代碼以完成驗證。
+(此驗證碼 10 分鐘內有效)
+
+P.D.K 團隊 敬上
+"""
+        mail.send(msg)
+        return jsonify({'success': True, 'message': '驗證碼已發送！'})
+    except Exception as e:
+        print(f"寄信錯誤: {e}")
+        return jsonify({'success': False, 'message': '寄信失敗，請檢查 Email 是否正確'})
+
+
+# ★★★ 新增：會員註冊路由 ★★★
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    # 如果已經登入，直接回首頁
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
+
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # ★★★ 新增：取得並檢查驗證碼 ★★★
+        input_code = request.form.get('verification_code')
+        server_code = session.get('verification_code')
+        server_email = session.get('verification_email')
+
+        # 1. 檢查驗證碼是否存在或正確
+        if not input_code or input_code != server_code:
+            flash('驗證碼錯誤或已過期，請重新發送')
+            return redirect(url_for('register'))
+        
+        # 2. 檢查使用者是否偷偷換了 Email (用 A 驗證，結果註冊 B)
+        if email != server_email:
+            flash('Email 與驗證時不符，請重新驗證')
+            return redirect(url_for('register'))
+
+        # 3. 基本密碼檢查
+        if password != confirm_password:
+            flash('兩次密碼輸入不一致')
+            return redirect(url_for('register'))
+        
+        # 4. 再次檢查 Email 是否已被註冊 (雙重保險)
+        user = User.query.filter_by(email=email).first()
+        if user:
+            flash('此 Email 已經被註冊過')
+            return redirect(url_for('register'))
+
+        # 5. 建立新使用者
+        new_user = User(
+            email=email,
+            name=name,
+            phone=phone,
+            role='customer'
+        )
+        new_user.set_password(password)
+
+        # 6. 存入資料庫
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            
+            # ★★★ 註冊成功後，清除 Session 驗證碼 (釋放記憶體) ★★★
+            session.pop('verification_code', None)
+            session.pop('verification_email', None)
+            
+            # 直接幫他登入
+            login_user(new_user)
+            flash('歡迎加入 P.D.K！註冊成功')
+            return redirect(url_for('home'))
+            
+        except Exception as e:
+            print(e)
+            flash('註冊失敗，系統發生錯誤')
+            return redirect(url_for('register'))
+
+    return render_template('register.html')
+
+# ==============================================================================
+# ★★★ 修改：將登入拆分為 前台會員(login) 與 後台管理(admin_login) ★★★
+# ==============================================================================
+
+# 1. 前台會員登入 (路由：/login)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # ... (前面的程式碼不用動) ...
+
     if request.method == 'POST':
-        email = request.form.get('username') # 前端 input name 若是 username
+        email = request.form.get('email') 
         password = request.form.get('password')
         
-        # ★★★ 新邏輯：去資料庫查使用者 ★★★
         user = User.query.filter_by(email=email).first()
         
         if user and user.check_password(password):
-            login_user(user) # 登入成功，寫入 session
             if user.role == 'admin':
-                return redirect(url_for('admin_orders'))
-            else:
-                return redirect(url_for('home')) # 一般會員回首頁 (之後改成會員中心)
-        else:
-            return render_template('admin/login.html', error="帳號或密碼錯誤")
+                flash('管理員請由後台入口登入', 'error')
+                return redirect(url_for('admin_login'))
             
-    return render_template('admin/login.html')
+            login_user(user) # 使用者登入成功
+
+            # ==========================================
+            # ★★★ 新增：登入時自動檢查並補發生日禮金 ★★★
+            # ==========================================
+            try:
+                # 1. 檢查是否有資格 (Pure/Deep/Keep 且 有設定生日)
+                if user.member_tier in ['Pure', 'Deep', 'Keep'] and user.birthday:
+                    today = datetime.date.today()
+                    # 2. 檢查是否生日當月
+                    if user.birthday.month == today.month:
+                        # 3. 檢查今年是否領過 (避免重複發)
+                        # 定義該等級的金額
+                        rewards = {'Pure': 150, 'Deep': 200, 'Keep': 300}
+                        amount = rewards.get(user.member_tier, 0)
+                        
+                        v_title = f"{user.member_tier} 會員生日禮"
+                        # 找券的母本 ID
+                        voucher = Voucher.query.filter_by(title=v_title).first()
+                        
+                        if voucher:
+                            # 檢查過去 360 天內有沒有領過這張券
+                            check_start = datetime.datetime.now() - datetime.timedelta(days=360)
+                            has_received = UserVoucher.query.filter(
+                                UserVoucher.user_id == user.id,
+                                UserVoucher.voucher_id == voucher.id,
+                                UserVoucher.created_at >= check_start
+                            ).first()
+                            
+                            if not has_received:
+                                # 沒領過 -> 發放！
+                                expiry = datetime.datetime.now() + datetime.timedelta(days=365)
+                                new_uv = UserVoucher(
+                                    user_id=user.id,
+                                    voucher_id=voucher.id,
+                                    expiry_date=expiry
+                                )
+                                db.session.add(new_uv)
+                                db.session.commit()
+                                flash(f'生日快樂！已發送 {user.member_tier} 會員專屬生日禮金 ${amount}！', 'success')
+            except Exception as e:
+                print(f"登入生日檢查錯誤: {e}")
+            # ==========================================
+            # ★★★ 結束新增 ★★★
+            # ==========================================
+
+            return redirect(url_for('home')) 
+        else:
+            flash('帳號或密碼錯誤', 'error')
+            
+    return render_template('login.html')
+
+
+# 2. 後台管理員登入 (路由：/admin/login)
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    # 如果已經登入且是管理員，直接進後台
+    if current_user.is_authenticated and current_user.role == 'admin':
+        return redirect(url_for('admin_orders'))
+
+    error = None
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        user = User.query.filter_by(email=email).first()
+        
+        if user and user.check_password(password):
+            # ★ 嚴格檢查：只有 admin 角色才能從這裡登入
+            if user.role != 'admin':
+                error = "您沒有權限進入後台"
+            else:
+                login_user(user)
+                return redirect(url_for('admin_orders'))
+        else:
+            error = "帳號或密碼錯誤"
+    
+    # ★★★ 這裡渲染原本的 admin/login.html ★★★
+    return render_template('admin/login.html', error=error)
 
 @app.route('/logout')
 @app.route('/admin/logout')
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+# ==============================================================================
+# ★★★ 新增區塊 4：後台優惠券管理 (Admin Coupon Routes) ★★★
+# ==============================================================================
+# ----------------------
+# 後台管理：手動發放折扣券 (IG/公益用)
+# ----------------------
+@app.route('/admin/issue_voucher', methods=['GET', 'POST'])
+@login_required
+def admin_issue_voucher():
+    # 1. 權限檢查：只有 admin 可以進來
+    if current_user.role != 'admin':
+        flash('權限不足', 'danger')
+        return redirect(url_for('index'))
+
+    # 2. 抓出所有「活動類 (activity)」的券供選擇
+    # (通常我們不會手動發「邀請獎勵」，那個是系統發的，所以這裡只撈 activity)
+    manual_vouchers = Voucher.query.filter_by(voucher_type='activity', is_active=True).all()
+
+    if request.method == 'POST':
+        target_email = request.form.get('email')
+        voucher_id = request.form.get('voucher_id')
+
+        # A. 找會員
+        user = User.query.filter_by(email=target_email).first()
+        if not user:
+            flash('找不到此會員 Email', 'danger')
+            return redirect(url_for('admin_issue_voucher'))
+
+        # B. 檢查會員資格 (Pure 以上才能領?)
+        # 根據您的規則：需下單過一次(Pure)才能有折扣券功能
+        # 如果您希望嚴格執行，可以把下面這行註解打開：
+        if user.orders_count == 0:
+            flash('此會員尚未成為 Pure 會員，無法發放折扣券', 'warning')
+            return redirect(url_for('admin_issue_voucher'))
+
+        # C. 找券
+        voucher = Voucher.query.get(voucher_id)
+        
+        # D. 發放 (建立關聯)
+        # 設定到期日：這裡先設定為 365 天後過期，您也可以改成 None (不過期)
+        expiry = datetime.datetime.now() + datetime.timedelta(days=365)
+        
+        new_uv = UserVoucher(
+            user_id=user.id, 
+            voucher_id=voucher.id,
+            expiry_date=expiry
+        )
+        db.session.add(new_uv)
+        db.session.commit()
+
+        flash(f'成功！已發送 [{voucher.title}] 給 {user.name}', 'success')
+        return redirect(url_for('admin_issue_voucher'))
+
+    return render_template('admin/issue_voucher.html', vouchers=manual_vouchers)
+
+# ----------------------
+# 後台：折扣券管理列表 (新增/編輯/發放)
+# ----------------------
+@app.route('/admin/vouchers', methods=['GET', 'POST'])
+@login_required
+def admin_vouchers():
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        # 接收表單資料
+        title = request.form.get('title')
+        discount = int(request.form.get('discount'))
+        v_type = request.form.get('voucher_type')
+        min_spend = int(request.form.get('min_spend', 0)) # 新增
+        valid_days = int(request.form.get('valid_days', 30))
+        desc = request.form.get('description')
+        
+        # 處理時間 (如果沒填就是 None)
+        start_str = request.form.get('start_time')
+        end_str = request.form.get('end_time')
+        
+        start_time = datetime.datetime.strptime(start_str, '%Y-%m-%dT%H:%M') if start_str else None
+        end_time = datetime.datetime.strptime(end_str, '%Y-%m-%dT%H:%M') if end_str else None
+
+        new_v = Voucher(
+            title=title,
+            discount_value=discount,
+            voucher_type=v_type,
+            min_spend=min_spend,
+            valid_days=valid_days,
+            start_time=start_time,
+            end_time=end_time,
+            description=desc
+        )
+        db.session.add(new_v)
+        db.session.commit()
+        flash('折扣券建立成功！', 'success')
+        return redirect(url_for('admin_vouchers'))
+
+    vouchers = Voucher.query.all()
+    # 這裡不使用 extends base.html，改用完整 HTML 回傳，解決您的 Error
+    return render_template('admin/vouchers.html', vouchers=vouchers)
+
+# ----------------------
+# 後台：編輯特定折扣券 & 發放給會員
+# ----------------------
+@app.route('/admin/vouchers/<int:id>', methods=['GET', 'POST'])
+@login_required
+def admin_voucher_detail(id):
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+
+    voucher = Voucher.query.get_or_404(id)
+
+    if request.method == 'POST':
+        if 'update_voucher' in request.form:
+            voucher.title = request.form.get('title')
+            voucher.discount_value = int(request.form.get('discount'))
+            voucher.min_spend = int(request.form.get('min_spend', 0))
+            voucher.valid_days = int(request.form.get('valid_days'))
+            voucher.description = request.form.get('description')
+            
+            # 時間處理
+            start_str = request.form.get('start_time')
+            end_str = request.form.get('end_time')
+            if start_str: voucher.start_time = datetime.datetime.strptime(start_str, '%Y-%m-%dT%H:%M')
+            if end_str: voucher.end_time = datetime.datetime.strptime(end_str, '%Y-%m-%dT%H:%M')
+            else: voucher.end_time = None # 允許清除結束時間
+
+            voucher.is_active = 'is_active' in request.form
+            db.session.commit()
+            flash('設定已更新', 'success')
+
+        elif 'issue_to_user' in request.form:
+            # (這裡維持原本發放邏輯，不變)
+            target_email = request.form.get('target_email')
+            user = User.query.filter_by(email=target_email).first()
+            if not user:
+                flash(f'找不到會員：{target_email}', 'danger')
+            else:
+                expiry = None
+                if voucher.valid_days > 0:
+                    expiry = datetime.datetime.now() + datetime.timedelta(days=voucher.valid_days)
+                new_uv = UserVoucher(user_id=user.id, voucher_id=voucher.id, expiry_date=expiry)
+                db.session.add(new_uv)
+                db.session.commit()
+                flash(f'已成功發送給 {user.name}', 'success')
+
+        return redirect(url_for('admin_voucher_detail', id=voucher.id))
+
+    return render_template('admin/voucher_detail.html', voucher=voucher)
+
+# 1. 優惠券列表
+@app.route('/admin/coupons')
+@login_required
+def admin_coupons():
+    if current_user.role != 'admin': return redirect(url_for('home'))
+    coupons = Coupon.query.order_by(Coupon.created_at.desc()).all()
+    return render_template('admin/coupons.html', coupons=coupons)
+
+# 2. 新增/編輯優惠券
+@app.route('/admin/coupon/edit', methods=['GET', 'POST'])
+@app.route('/admin/coupon/edit/<int:coupon_id>', methods=['GET', 'POST'])
+@login_required
+def admin_coupon_edit(coupon_id=None):
+    if current_user.role != 'admin': return redirect(url_for('home'))
+    
+    coupon = None
+    if coupon_id:
+        coupon = Coupon.query.get_or_404(coupon_id)
+        
+    if request.method == 'POST':
+        code = request.form.get('code').upper()
+        name = request.form.get('name')
+        discount_type = request.form.get('discount_type')
+        discount_value = int(request.form.get('discount_value'))
+        min_spend = int(request.form.get('min_spend'))
+        usage_limit = int(request.form.get('usage_limit'))
+        per_user_limit = int(request.form.get('per_user_limit'))
+        
+        start_str = request.form.get('start_date')
+        end_str = request.form.get('end_date')
+        
+        # 日期轉換 (HTML datetime-local 回傳格式為 'YYYY-MM-DDTHH:MM')
+        start_date = datetime.datetime.strptime(start_str, '%Y-%m-%dT%H:%M') if start_str else datetime.datetime.now()
+        end_date = datetime.datetime.strptime(end_str, '%Y-%m-%dT%H:%M') if end_str else None
+        
+        is_active = True if request.form.get('is_active') else False
+
+        if coupon: # 編輯
+            coupon.code = code
+            coupon.name = name
+            coupon.discount_type = discount_type
+            coupon.discount_value = discount_value
+            coupon.min_spend = min_spend
+            coupon.usage_limit = usage_limit
+            coupon.per_user_limit = per_user_limit
+            coupon.start_date = start_date
+            coupon.end_date = end_date
+            coupon.is_active = is_active
+        else: # 新增
+            new_coupon = Coupon(
+                code=code, name=name, discount_type=discount_type, discount_value=discount_value,
+                min_spend=min_spend, usage_limit=usage_limit, per_user_limit=per_user_limit,
+                start_date=start_date, end_date=end_date, is_active=is_active
+            )
+            db.session.add(new_coupon)
+            
+        db.session.commit()
+        return redirect(url_for('admin_coupons'))
+
+    return render_template('admin/coupon_form.html', coupon=coupon)
+
+# 3. 刪除優惠券
+@app.route('/admin/coupon/delete', methods=['POST'])
+@login_required
+def delete_coupon():
+    if current_user.role != 'admin': return redirect(url_for('home'))
+    c_id = request.form.get('coupon_id')
+    coupon = Coupon.query.get(c_id)
+    if coupon:
+        db.session.delete(coupon)
+        db.session.commit()
+    return redirect(url_for('admin_coupons'))
+
+# ==============================================================================
+# ★★★ 新增：忘記密碼功能 (Forgot Password) ★★★
+# ==============================================================================
+
+# 1. 忘記密碼頁面 (輸入 Email)
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        
+        # 檢查 Email 是否存在於資料庫
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            flash('此 Email 尚未註冊會員')
+            return redirect(url_for('forgot_password'))
+
+        # 產生 6 位數驗證碼
+        code = str(random.randint(100000, 999999))
+        
+        # 存入 Session (暫存)
+        session['reset_code'] = code
+        session['reset_email'] = email
+
+        try:
+            # 寄信
+            msg = Message("【P.D.K】重設密碼驗證信", recipients=[email])
+            msg.body = f"""
+親愛的 P.D.K 會員您好，
+
+我們收到了您重設密碼的請求。
+您的驗證碼為：{code}
+
+請回到網頁輸入此代碼以設定新密碼。
+若您未發出此請求，請忽略此信件。
+"""
+            mail.send(msg)
+            flash('驗證碼已發送至您的信箱，請查收')
+            return redirect(url_for('reset_password'))
+            
+        except Exception as e:
+            print(e)
+            flash('寄信失敗，請稍後再試')
+            return redirect(url_for('forgot_password'))
+
+    return render_template('auth/forgot_password.html')
+
+
+# 2. 重設密碼頁面 (輸入驗證碼 + 新密碼)
+@app.route('/reset_password', methods=['GET', 'POST'])
+def reset_password():
+    if request.method == 'POST':
+        input_code = request.form.get('code')
+        new_password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # 從 Session 取得正確的驗證碼與 Email
+        server_code = session.get('reset_code')
+        reset_email = session.get('reset_email')
+
+        # 驗證
+        if not input_code or input_code != server_code:
+            flash('驗證碼錯誤或已過期')
+            return redirect(url_for('reset_password'))
+
+        if new_password != confirm_password:
+            flash('兩次密碼輸入不一致')
+            return redirect(url_for('reset_password'))
+
+        # 寫入資料庫 (更新密碼)
+        user = User.query.filter_by(email=reset_email).first()
+        if user:
+            user.set_password(new_password) # 加密並更新
+            db.session.commit()
+            
+            # 清除 Session
+            session.pop('reset_code', None)
+            session.pop('reset_email', None)
+            
+            flash('密碼重設成功！請使用新密碼登入')
+            return redirect(url_for('login'))
+        else:
+            flash('系統錯誤，找不到使用者')
+            return redirect(url_for('forgot_password'))
+
+    return render_template('auth/reset_password.html')
+
+# ==============================================================================
+# ★★★ 修改：將會員功能拆成兩個路由 ★★★
+# ==============================================================================
+
+# ----------------------
+# 1. 我的資料 (修改個人檔案)
+# ----------------------
+# ----------------------
+# 1. 我的資料 (修改個人檔案 - 修正版)
+# ----------------------
+@app.route('/member', methods=['GET', 'POST'])
+@login_required
+def member():
+    if request.method == 'POST':
+        new_name = request.form.get('name')
+        new_phone = request.form.get('phone')
+        new_address = request.form.get('address')
+        new_store = request.form.get('store_info')
+        
+        # 生日欄位
+        new_birthday_str = request.form.get('birthday')
+        
+        if new_name and new_phone:
+            current_user.name = new_name
+            current_user.phone = new_phone
+            current_user.address = new_address
+            current_user.store_info = new_store
+            
+            # 生日處理邏輯
+            if not current_user.birthday and new_birthday_str:
+                try:
+                    # 嘗試兩種常見寫法，確保能夠轉換成功
+                    try:
+                        # 情況 A: 如果是用 from datetime import datetime
+                        b_date = datetime.strptime(new_birthday_str, '%Y-%m-%d').date()
+                    except AttributeError:
+                        # 情況 B: 如果是用 import datetime
+                        b_date = datetime.datetime.strptime(new_birthday_str, '%Y-%m-%d').date()
+                    
+                    current_user.birthday = b_date
+                    flash('生日設定成功！', 'success')
+                except Exception as e:
+                    print(f"生日轉換錯誤: {e}")
+                    flash('生日格式錯誤，請重新選擇', 'error')
+
+            try:
+                db.session.commit()
+                flash('個人資料更新成功！', 'success')
+            except Exception as e:
+                db.session.rollback()
+                print(f"資料庫存檔錯誤: {e}")
+                flash('更新失敗，請稍後再試', 'error')
+        else:
+            flash('請填寫完整資料', 'error')
+            
+        return redirect(url_for('member'))
+
+    return render_template('member.html')
+
+# ----------------------
+# 2. 我的帳號 (Dashboard - 會員儀表板)
+# ----------------------
+@app.route('/my_account')
+@login_required
+def dashboard():
+    # 1. 計算會員升級進度 (根據新規則 $2500 / $5000)
+    next_tier = "Deep"
+    gap_amount = 0
+    progress_percent = 0
+    
+    # 確保 total_spend 有值
+    current_total = current_user.total_spend if current_user.total_spend else 0
+    
+    if current_user.member_tier == 'Pure' or current_user.orders_count < 1:
+        # 目標: Deep ($2500)
+        target = 2500
+        next_tier = "Deep"
+        gap_amount = target - current_total
+        progress_percent = min(100, int((current_total / target) * 100))
+        
+    elif current_user.member_tier == 'Deep':
+        # 目標: Keep ($5000)
+        target = 5000
+        next_tier = "Keep"
+        gap_amount = target - current_total
+        progress_percent = min(100, int((current_total / target) * 100))
+        
+    else: # Keep (最高級)
+        next_tier = "Max"
+        gap_amount = 0
+        progress_percent = 100
+
+    # 2. 統計有效優惠券
+    now = datetime.datetime.now()
+    valid_vouchers_count = 0
+    if current_user.coupons:
+        for uv in current_user.coupons:
+            if not uv.is_used and uv.voucher.is_active:
+                if not uv.expiry_date or uv.expiry_date > now:
+                    valid_vouchers_count += 1
+
+    # 3. 推薦碼使用次數 (被使用幾次 = 獲得幾張券)
+    referral_count = User.query.filter_by(referrer_id=current_user.id).count()
+
+    return render_template('dashboard.html', 
+                           next_tier=next_tier,
+                           gap_amount=max(0, gap_amount),
+                           progress=progress_percent,
+                           voucher_count=valid_vouchers_count,
+                           referral_count=referral_count)
+
+# 2. 訂單查詢 (獨立頁面)
+@app.route('/my_orders')
+@login_required
+def my_orders():
+    # 抓取目前登入使用者的訂單
+    orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.created_at.desc()).all()
+    return render_template('my_orders.html', orders=orders)
 
 # --- 後台路由 (需權限驗證) ---
 
@@ -320,27 +1724,80 @@ def admin_order_detail(order_id):
     except:
         items = []
 
-    return render_template('admin/order_detail.html', order=order, items=items)
+    # ★★★ 新增：建立商品對照表 (Product Map) ★★★
+    # 用途：如果訂單裡的商品沒存照片，我們可以用 ID 來這裡查現在的最新照片
+    all_products = Product.query.all()
+    product_map = {p.id: p for p in all_products} 
+    # 這樣我們就可以用 product_map['sh_001'].image 查到照片了
 
+    return render_template('admin/order_detail.html', order=order, items=items, product_map=product_map)
+
+# ---------------------------------------------------
+# ★★★ 後台：更新訂單狀態 (含推薦獎勵發放) ★★★
+# ---------------------------------------------------
 @app.route('/admin/order/update_status', methods=['POST'])
 @login_required
 def update_order_status():
-    if current_user.role != 'admin':
-        return redirect(url_for('home'))
-
     order_id = request.form.get('order_id')
     new_status = request.form.get('status')
-    source_page = request.form.get('source_page', 'detail') 
+    source_page = request.form.get('source_page')
     
     order = Order.query.get(order_id)
     if order:
+        old_status = order.status
         order.status = new_status
+        
+        if new_status == 'paid' and not order.paid_at:
+            order.paid_at = datetime.datetime.now()
+            
+        # ★★★ 觸發推薦獎勵 (僅在變為 done 時) ★★★
+        if new_status == 'done' and old_status != 'done' and order.referrer_id:
+            referrer = User.query.get(order.referrer_id)
+            
+            # 檢查推薦人存在，且確保不重複發放 (這裡簡單檢查該訂單是否已處理過，實務上可加欄位標記)
+            # 這裡我們假設訂單完成只會觸發一次，或者您可以在 Order 加一個 is_referral_paid 欄位
+            if referrer:
+                reward_title = '好友推薦獎勵'
+                # 1. 找母本，沒有就建
+                reward_voucher = Voucher.query.filter_by(title=reward_title).first()
+                if not reward_voucher:
+                    reward_voucher = Voucher(
+                        title=reward_title,
+                        discount_value=100,
+                        voucher_type='reward', # 可疊加
+                        min_spend=500,
+                        valid_days=365,        # ★ 設定效期 1 年
+                        description='成功邀請好友下單獎勵'
+                    )
+                    db.session.add(reward_voucher)
+                    db.session.flush()
+                
+                # 2. 發給使用者
+                expiry = datetime.datetime.now() + datetime.timedelta(days=365)
+                new_uv = UserVoucher(
+                    user_id=referrer.id,
+                    voucher_id=reward_voucher.id,
+                    expiry_date=expiry
+                    
+                )
+                db.session.add(new_uv)
+                
+                # 3. ★ 寄信通知
+                send_voucher_notification_email(referrer, reward_title, 100, "感謝您推薦好友加入 P.D.K！")
+                
+                print(f"★ 已發送推薦獎勵券並寄信給: {referrer.name}")
+
         db.session.commit()
+        
+        if order.user:
+            check_membership_upgrade(order.user)
+            
+        flash(f'訂單 {order.order_no} 狀態已更新為 {new_status}', 'success')
     
-    if source_page == 'list':
-        return redirect(url_for('admin_orders'))
-    else:
+    if source_page == 'detail':
         return redirect(url_for('admin_order_detail', order_id=order_id))
+    else:
+        return redirect(url_for('admin_orders'))
 
 @app.route('/admin/order/delete', methods=['POST'])
 @login_required
@@ -356,11 +1813,53 @@ def delete_order():
     
     return redirect(url_for('admin_orders'))
 
+# --- 聯絡我們頁面 (含表單寄信功能) ---
+@app.route('/contact', methods=['GET', 'POST'])
+def contact():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        subject = request.form.get('subject')
+        message_body = request.form.get('message')
+        
+        # 寄信給管理員 (您自己)
+        try:
+            msg = Message(f"【官網留言】{subject} - 来自 {name}",
+                          recipients=[app.config['MAIL_USERNAME']]) # 寄給自己
+            
+            msg.body = f"""
+            姓名: {name}
+            信箱: {email}
+            
+            留言內容:
+            {message_body}
+            """
+            mail.send(msg)
+            flash('訊息已發送！我們會盡快回覆您。', 'success') # 使用綠色成功提示
+            return redirect(url_for('contact'))
+            
+        except Exception as e:
+            print(e)
+            flash('發送失敗，請稍後再試，或直接使用 LINE 聯繫我們。', 'error')
+            
+    return render_template('contact.html')
+
 # ==============================================================================
 # 6. 商品管理路由 (Product Management) ★★★ 新增區塊 ★★★
 # ==============================================================================
+# --- 靜態資訊頁面 ---
+@app.route('/return-policy')
+def return_policy():
+    return render_template('return_policy.html')
 
-# 商品列表
+@app.route('/faq')
+def faq():
+    return render_template('faq.html')
+
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
 # 商品列表 (修改版：支援分類篩選)
 @app.route('/admin/products')
 @login_required
@@ -380,7 +1879,6 @@ def admin_products():
     # 3. 回傳模板 (多傳一個 current_category 給前端做按鈕亮燈判斷)
     return render_template('admin/products.html', products=products, current_category=cat_filter)
 
-# 新增/編輯商品 (共用一個視圖)
 @app.route('/admin/product/edit', methods=['GET', 'POST'])
 @app.route('/admin/product/edit/<product_id>', methods=['GET', 'POST'])
 @login_required
@@ -399,32 +1897,50 @@ def admin_product_edit(product_id=None):
         category = request.form.get('category')
         price = request.form.get('price')
         description = request.form.get('description')
-        
-        # 2. 處理圖片上傳與刪除 (★ 修改過的部分 ★)
+        volume = request.form.get('volume') # ★★★ 新增：取得容量欄位
+
+        # --- 處理第一張圖 (主圖) ---
         image_file = request.files.get('image')
         delete_check = request.form.get('delete_image') # 取得是否勾選刪除
 
         # 預設狀態：如果是編輯模式，先暫存舊圖片路徑；如果是新增，預設為 None
-        image_path = product.image if product else None 
+        image_path = product.image if product else None
 
         if delete_check == 'yes':
             # ★ 情況 A：使用者勾選了「刪除圖片」
             image_path = None
-            
         elif image_file and allowed_file(image_file.filename):
             # ★ 情況 B：使用者上傳了「新圖片」 (這會覆蓋舊圖)
             filename = secure_filename(image_file.filename)
             timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-            filename = f"{timestamp}_{filename}"
-            
+            filename = f"main_{timestamp}_{filename}" # 加上 main_ 前綴區分
+
             # 確保上傳資料夾存在
             if not os.path.exists(app.config['UPLOAD_FOLDER']):
                 os.makedirs(app.config['UPLOAD_FOLDER'])
-                
+
             image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             image_path = f"uploads/{filename}"
-            
-        # ★ 情況 C：沒刪除也沒上傳 -> 保持原樣 (image_path 維持舊路徑)
+
+        # --- ★★★ 新增：處理第二張圖 (標籤介紹圖) ★★★ ---
+        tag_image_file = request.files.get('tag_image')
+        delete_tag_check = request.form.get('delete_tag_image')
+
+        # 預設狀態：如果是編輯模式，先暫存舊圖片路徑；如果是新增，預設為 None
+        tag_image_path = product.tag_image if product else None
+
+        if delete_tag_check == 'yes':
+            tag_image_path = None
+        elif tag_image_file and allowed_file(tag_image_file.filename):
+            filename = secure_filename(tag_image_file.filename)
+            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            filename = f"tag_{timestamp}_{filename}" # 加上 tag_ 前綴區分
+
+            if not os.path.exists(app.config['UPLOAD_FOLDER']):
+                os.makedirs(app.config['UPLOAD_FOLDER'])
+
+            tag_image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            tag_image_path = f"uploads/{filename}"
 
         # 3. 判斷是新增還是修改
         if product: # 修改模式
@@ -432,24 +1948,30 @@ def admin_product_edit(product_id=None):
             product.category = category
             product.price = price
             product.description = description
+            product.volume = volume # ★★★ 更新這欄
+            # 只有在 image_path 有變動 (被刪除或有新上傳) 時才更新
+            if delete_check == 'yes' or (image_file and allowed_file(image_file.filename)):
+                 product.image = image_path
             
-            # ★ 關鍵：只有當 image_path 有被變更 (變成 None 或 新路徑) 時才寫入
-            # 但因為我們上面邏輯已經處理好了 image_path，直接賦值即可
-            product.image = image_path
-            
+            # 只有在 tag_image_path 有變動 (被刪除或有新上傳) 時才更新
+            if delete_tag_check == 'yes' or (tag_image_file and allowed_file(tag_image_file.filename)):
+                product.tag_image = tag_image_path
+
             flash('商品更新成功！')
         else: # 新增模式
             # 檢查 ID 是否重複
             if Product.query.get(p_id):
                 return render_template('admin/product_form.html', product=None, error="商品編號已存在")
-            
+
             new_product = Product(
                 id=p_id,
                 name=name,
                 category=category,
                 price=price,
                 description=description,
-                image=image_path
+                volume=volume, # ★★★ 寫入這欄
+                image=image_path,
+                tag_image=tag_image_path
             )
             db.session.add(new_product)
             flash('商品新增成功！')
@@ -475,7 +1997,114 @@ def delete_product():
     
     return redirect(url_for('admin_products'))
 
+# -------------------------------------------
+# 臨時工具：幫現有會員補發 PDK-ID 推薦碼
+# 使用方式：重啟後，瀏覽器輸入網址 /fix_referrals
+# -------------------------------------------
+@app.route('/fix_referrals')
+@login_required
+def fix_referrals():
+    # 找出所有等級符合 (Pure/Deep/Keep) 的會員
+    users = User.query.filter(
+        User.member_tier.in_(['Pure', 'Deep', 'Keep'])
+    ).all()
+    
+    count = 0
+    for u in users:
+        # 強制設定為 PDK-ID 格式 (例如 ID 1 -> PDK-000001)
+        correct_code = f"PDK-{u.id:06d}"
+        
+        # 如果原本沒有，或是格式不對，就更新
+        if u.referral_code != correct_code:
+            u.referral_code = correct_code
+            count += 1
+    
+    db.session.commit()
+    return f"修復完成！已將 {count} 位會員的推薦碼更新為 PDK-XXXXXX 流水號格式。"
+
+# 記得在最上面加入: from sqlalchemy import extract
+
+@app.route('/admin/send_birthday_vouchers')
+@login_required
+def send_birthday_vouchers():
+    # 權限檢查 (可選)
+    # if current_user.email != 'admin@gmail.com': return "無權限"
+
+    today = datetime.datetime.now()
+    current_month = today.month
+    
+    # 定義規則
+    tier_rewards = {
+        'Pure': 150,
+        'Deep': 200,
+        'Keep': 300
+    }
+    
+    # 1. 準備母本 (確保這 3 張券存在)
+    voucher_map = {}
+    for tier, amount in tier_rewards.items():
+        v_title = f"{tier} 會員生日禮"
+        v = Voucher.query.filter_by(title=v_title).first()
+        if not v:
+            v = Voucher(
+                title=v_title,
+                discount_value=amount,
+                voucher_type='activity', # 生日禮通常不疊加
+                min_spend=0,
+                valid_days=365,          # ★ 設定效期 1 年
+                description=f'祝您生日快樂！{tier} 會員專屬禮金'
+            )
+            db.session.add(v)
+            db.session.flush()
+        voucher_map[tier] = v.id
+
+    # 2. 撈出本月壽星
+    birthday_users = User.query.filter(
+        extract('month', User.birthday) == current_month,
+        User.member_tier.in_(['Pure', 'Deep', 'Keep'])
+    ).all()
+    
+    count = 0
+    for u in birthday_users:
+        vid = voucher_map.get(u.member_tier)
+        if vid:
+            # 檢查今年是否已經發過 (避免重複按)
+            # 邏輯：檢查該用戶過去 300 天內是否有拿過這張券
+            recent_v = UserVoucher.query.filter(
+                UserVoucher.user_id == u.id,
+                UserVoucher.voucher_id == vid,
+                UserVoucher.created_at >= today - datetime.timedelta(days=300)
+            ).first()
+            
+            if not recent_v:
+                expiry = today + datetime.timedelta(days=365) # 效期一年
+                new_uv = UserVoucher(
+                    user_id=u.id, 
+                    voucher_id=vid, 
+                    expiry_date=expiry
+                )
+                db.session.add(new_uv)
+                
+                # ★ 3. 寄信通知
+                v_obj = Voucher.query.get(vid)
+                send_voucher_notification_email(u, v_obj.title, v_obj.discount_value, "一年一度的生日禮金，祝您生日快樂！")
+                
+                count += 1
+
+    db.session.commit()
+    return f"生日禮券發送完畢！本月壽星共 {len(birthday_users)} 人，實際發送 {count} 張，並已寄出通知信。"
+
+# --- 這是檔案最底端，且只能出現一次 ---
 if __name__ == '__main__':
     with app.app_context():
-        create_initial_data() # 啟動時自動檢查並建立資料
+        # 1. 建立資料表 (如果是用 models.py，確保這裡能讀到)
+        db.create_all() 
+        
+        # 2. 初始化資料 (管理員、商品)
+        create_initial_data() 
+        
+        # 3. 初始化折扣券 (這就是你剛才缺少的！)
+        create_default_vouchers() 
+
+    # 4. 啟動
     app.run(host='0.0.0.0', port=5000, debug=True)

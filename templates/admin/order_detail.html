@@ -52,11 +52,11 @@
 
                 <form action="/admin/order/delete" method="POST" style="display:inline;">
                     <input type="hidden" name="order_id" value="{{ order.id }}">
-                    <button type="submit" class="btn-icon btn-delete" onclick="return confirm('確定要刪除嗎？');" title="刪除">
+                    <button type="submit" class="btn-icon btn-delete" onclick="return confirm('確定要刪除嗎？此操作無法復原！');" title="刪除訂單">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </form>
-                <button onclick="window.print()" class="btn-icon btn-print" title="列印"><i class="fas fa-print"></i></button>
+                <button onclick="window.print()" class="btn-icon btn-print" title="列印訂單"><i class="fas fa-print"></i></button>
             </div>
         </div>
 
@@ -72,8 +72,27 @@
                     <div class="item-list-container">
                         {% set summary = namespace(subtotal=0) %}
                         {% for item in items %}
+                        
+                        {% set display_img = '' %}
+                        
+                        {% if item.img %}
+                            {% set display_img = item.img %}
+                        
+                        {% elif product_map and item.id in product_map and product_map[item.id].image %}
+                             {% set display_img = url_for('static', filename=product_map[item.id].image) %}
+                        {% endif %}
                         <div class="product-item-grid">
-                            <div class="prod-img"><i class="fas fa-image"></i></div>
+                            
+                            <div class="prod-img">
+                                {% if display_img %}
+                                    <div style="width:100%; height:100%; background-image: url('{{ display_img }}'); background-size: cover; background-position: center; border-radius: 4px;"></div>
+                                {% else %}
+                                    <div style="width:100%; height:100%; background: #333; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #555;">
+                                        <i class="fas fa-camera-slash"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+
                             <div class="prod-info">
                                 <div class="prod-name">{{ item.name }}</div>
                                 <div class="prod-unit-price">單價 ${{ item.price }}</div>
@@ -89,27 +108,53 @@
                     <div class="summary-footer">
                         <div class="sum-row">
                             <span>商品小計</span>
-                            <span>NT$ {{ summary.subtotal }}</span>
+                            <span>NT$ {{ order.total_amount }}</span>
                         </div>
                         <div class="sum-row">
-                            {% set shipping_fee = 100 if order.shipping_method == 'home' else 40 %}
-                            <span>運費 ({{ '宅配' if order.shipping_method == 'home' else '超商' }})</span>
-                            <span>+ NT$ {{ shipping_fee }}</span>
+                            <span>運費</span>
+                            <span>+ NT$ {{ order.shipping_fee }}</span>
                         </div>
                         
-                        {% set discount_amt = (summary.subtotal + shipping_fee) - order.total_amount %}
-                        {% if discount_amt > 0 %}
-                        <div class="sum-row discount">
-                            <span>優惠券折扣</span>
-                            <span>- NT$ {{ discount_amt }}</span>
+                        {% if order.discount_promo > 0 %}
+                        <div class="sum-row discount" style="color: #28a745; font-size: 0.9rem;">
+                            <span>&emsp;└ 優惠碼折抵</span>
+                            <span>- NT$ {{ order.discount_promo }}</span>
                         </div>
                         {% endif %}
+
+                        {% if order.discount_voucher > 0 %}
+                        <div class="sum-row discount" style="color: #28a745; font-size: 0.9rem;">
+                            <span>&emsp;└ 折扣券折抵</span>
+                            <span>- NT$ {{ order.discount_voucher }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% if order.discount_member > 0 %}
+                        <div class="sum-row discount" style="color: #28a745; font-size: 0.9rem;">
+                            <span>&emsp;└ 會員等級優惠 ({{ order.user.member_tier if order.user else 'Member' }})</span>
+                            <span>- NT$ {{ order.discount_member }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% set known_discounts = (order.discount_promo or 0) + (order.discount_voucher or 0) + (order.discount_member or 0) %}
+                        {% set referral_discount = (order.discount_amount or 0) - known_discounts %}
                         
+                        {% if referral_discount > 0 %}
+                        <div class="sum-row discount" style="color: #28a745; font-size: 0.9rem;">
+                            <span>&emsp;└ 推薦碼折扣 (好友推薦)</span>
+                            <span>- NT$ {{ referral_discount }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="sum-row discount" style="border-top: 1px dashed #eee; margin-top: 5px; padding-top: 5px; font-weight: bold;">
+                            <span>折扣總計</span>
+                            <span>- NT$ {{ order.discount_amount }}</span>
+                        </div>
+
                         <div class="sum-divider"></div>
 
                         <div class="sum-row total">
                             <span>實付總額</span>
-                            <span class="highlight-gold">NT$ {{ order.total_amount }}</span>
+                            <span class="highlight-gold">NT$ {{ order.final_total }}</span>
                         </div>
                     </div>
                 </div>
@@ -140,7 +185,13 @@
 
                     <div class="info-block">
                         <label>付款方式</label>
-                        <div class="text-gold bold">{{ order.payment_method }}</div>
+                        <div class="text-gold bold">
+                            {% if order.payment_method == 'linepay' %} LINE Pay
+                            {% elif order.payment_method == 'atm' %} 銀行轉帳
+                            {% elif order.payment_method == 'jiekou' %} 街口支付
+                            {% else %} {{ order.payment_method }}
+                            {% endif %}
+                        </div>
                     </div>
 
                     <div class="info-block">
@@ -155,5 +206,7 @@
                 </div>
             </div>
 
-        </div> </div> </body>
+        </div> 
+    </div> 
+</body>
 </html>

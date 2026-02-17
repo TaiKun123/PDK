@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ product.name }} | P.D.K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="product-page">
+    <div class="bg-fixed-layer"></div>
+    <nav class="navbar">
+        <div class="menu-toggle" onclick="openNav()">&#9776;</div>
+        <a href="/" class="logo">P  D  K</a>
+        <div class="cart-wrapper" onclick="toggleCart()">
+            <svg class="cart-icon-svg" viewBox="0 0 24 24">
+                <path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/>
+                <circle cx="9" cy="20" r="1.5" fill="#fff"/>
+                <circle cx="17" cy="20" r="1.5" fill="#fff"/>
+            </svg>
+            <span class="cart-badge" id="navCartBadge">0</span>
+        </div>
+    </nav>
+
+    {% include 'includes/sidebar.html' %}
+    
+    {% include 'includes/cart_drawer.html' %}
+
+    <div class="pdp-wrapper">
+        <div class="swiper mySwiper">
+            <div class="swiper-wrapper">
+                <div class="swiper-slide">
+                    {% if product.image %}
+                    <div class="slide-content" style="background-image: url('{{ url_for('static', filename=product.image) }}'); background-size: cover; background-position: center; height: 100%;">
+                    </div>
+                    {% else %}
+                    <div class="slide-content" style="background:#000; color:#fff; display:flex; align-items:center; justify-content:center;">
+                        暫無圖片
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="swiper-slide">
+                    <div class="product-tag-section" style="margin-top: 40px; text-align: center;">
+                        {% if product.tag_image %}
+                            <img src="{{ url_for('static', filename=product.tag_image) }}" alt="Product Tag" style="max-width: 100%; height: auto;">
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="swiper-pagination"></div>
+        </div>
+
+        <div class="pdp-info-box">
+            <div class="pdp-header-centered">
+                <h1 class="pdp-name">{{ product.name }}</h1>
+            </div>
+
+            <div class="pdp-info-flex-container">
+                <div class="pdp-left-section">
+                    <div class="pdp-price">NT$ {{ product.price }}</div>
+                    
+                    {% if product.volume %}
+                    <div class="pdp-volume-tag">容量：{{ product.volume }}</div>
+                    {% endif %}
+
+                    <div class="qty-selector-group">
+                        <span class="qty-label">數量 Quantity</span>
+                        <div class="qty-stepper">
+                            <button class="qty-btn" onclick="updateQty(-1)">-</button>
+                            <div id="displayQty" class="qty-num">1</div>
+                            <button class="qty-btn" onclick="updateQty(1)">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pdp-vertical-divider"></div>
+
+                <div class="pdp-right-section">
+                    <div class="pdp-desc-styled">
+                        {% if product.description %}
+                            {% set parts = product.description.split('======') %}
+                            {% set main_desc = parts[0] %}
+                            
+                            <div class="pdp-desc-label">RECOMMENDED FOR</div>
+                            
+                            <div class="pdp-desc-text">
+                                {{ main_desc | replace('\n', '<br>') | safe }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="fixed-bottom-bar">
+        <button class="action-btn btn-back" onclick="history.back()">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+        <button class="action-btn btn-wishlist-pdp {% if current_user.is_authenticated and product.id in current_user_wishlist_ids %}active{% endif %}" 
+                onclick="togglePdpWishlist('{{ product.id }}', this)">
+            <i class="fas fa-heart"></i>
+        </button>
+        <button class="action-btn btn-add" onclick="addToCart()">
+            加入購物車
+        </button>
+    </div>
+    <div style="height: 80px;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <script>
+        const productInfo = {
+            id: '{{ product.id }}',
+            name: '{{ product.name }}',
+            price: {{ product.price }},
+            img: '{{ url_for("static", filename=product.image) if product.image else "" }}'
+        };
+        let buyQty = 1;
+
+        var swiper = new Swiper(".mySwiper", {
+            loop: true,
+            pagination: { el: ".swiper-pagination", clickable: true },
+            speed: 400,
+            grabCursor: true
+        });
+
+        function updateQty(n) {
+            buyQty += n;
+            if(buyQty < 1) buyQty = 1;
+            document.getElementById('displayQty').innerText = buyQty;
+        }
+
+        function addToCart() {
+            let cart = JSON.parse(localStorage.getItem('pdk_cart')) || [];
+            let existing = cart.find(item => item.id === productInfo.id);
+            if(existing) {
+                existing.qty += buyQty;
+            } else {
+                cart.push({
+                    id: productInfo.id,
+                    name: productInfo.name,
+                    price: productInfo.price,
+                    img: productInfo.img,
+                    qty: buyQty
+                });
+            }
+            localStorage.setItem('pdk_cart', JSON.stringify(cart));
+            if (typeof window.externalCartUpdate === 'function') {
+                window.externalCartUpdate();
+            }
+            let icon = document.querySelector('.cart-wrapper');
+            if(icon) {
+                icon.style.transform = 'scale(1.2)';
+                setTimeout(()=> icon.style.transform='scale(1)', 200);
+            }
+        }
+
+        function togglePdpWishlist(productId, btn) {
+            var isUserLoggedIn = "{{ current_user.is_authenticated }}";
+            if (isUserLoggedIn === "False") {
+                alert('請先登入會員即可使用收藏功能！');
+                window.location.href = '/login';
+                return;
+            }
+            fetch('/toggle_wishlist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: productId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.action === 'added') {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    </script>
+</body>
+</html>

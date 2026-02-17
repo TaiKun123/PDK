@@ -27,9 +27,9 @@
                 </a>
 
                 <a href="{{ url_for('admin_products') }}" class="menu-item {% if not current_category %}active{% endif %}">
-                    <span><i class="fas fa-tags"></i> 商品管理 (全部)</span>
+                    <span><i class="fas fa-tags"></i> 商品管理</span>
                 </a>
-
+                
                 <div style="margin-bottom: 10px; background: rgba(0,0,0,0.2);">
                     <a href="{{ url_for('admin_products', category='shampoo') }}" class="submenu-link {% if current_category == 'shampoo' %}active{% endif %}">
                         - 洗髮精
@@ -44,6 +44,18 @@
                         - 其他產品
                     </a>
                 </div>
+
+                <a href="{{ url_for('admin_coupons') }}" class="menu-item">
+                    <span><i class="fas fa-ticket-alt"></i> 優惠碼管理</span>
+                </a>
+
+                <a href="{{ url_for('admin_vouchers') }}" class="menu-item">
+                    <span><i class="fas fa-percent"></i> 折扣券設定</span>
+                </a>
+
+                <a href="{{ url_for('send_birthday_vouchers') }}" class="menu-item" onclick="return confirm('確定要立即檢查並發送本月生日禮金嗎？');">
+                    <span style="color: #d4af37;"><i class="fas fa-birthday-cake"></i> 派發生日禮金</span>
+                </a>
             </div>
         </aside>
 
@@ -58,7 +70,7 @@
                     {% else %}全部商品列表
                     {% endif %}
                 </h2>
-                <a href="/admin/product/edit" class="action-btn btn-complete btn-create">
+                <a href="/admin/product/edit" class="btn-complete btn-create">
                     <i class="fas fa-plus"></i> 新增商品
                 </a>
             </div>
@@ -80,6 +92,7 @@
                             <th>名稱</th>
                             <th>分類</th>
                             <th>價格</th>
+                            <th>容量</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -108,6 +121,7 @@
                                 </span>
                             </td>
                             <td class="text-gold bold">NT$ {{ product.price }}</td>
+                            <td class="text-sm text-gray">{{ product.volume or '-' }}</td>
                             <td>
                                 <div class="action-group">
                                     <a href="/admin/product/edit/{{ product.id }}" class="btn-detail">編輯</a>
@@ -121,7 +135,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="6" style="text-align:center; padding: 40px; color: #666;">
+                            <td colspan="7" style="text-align:center; padding: 40px; color: #666;">
                                 <i class="fas fa-box-open" style="font-size: 2rem; margin-bottom: 10px; display:block;"></i>
                                 此分類目前沒有商品
                             </td>
