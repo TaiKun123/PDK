@@ -26,3 +26,6 @@ instance/pdk.db
 /instance
 instance/pdk.db
 /instance
+
+*.db
+instance/
