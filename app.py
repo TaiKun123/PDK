@@ -628,7 +628,7 @@ def send_order_confirmation_email(order):
         <html>
         <body>
             <h2>感謝您的訂單！</h2>
-            <p>親愛的 {order.customer_name}，我們已收到您的訂單。</p>
+            <p>親愛的 {order.customer_name}，我們已經收到您的訂單。</p>
             <p>訂單編號：{order.order_no}</p>
             <p>訂單金額：NT$ {order.final_total}</p>
             <p>我們會盡快為您安排出貨。</p>
