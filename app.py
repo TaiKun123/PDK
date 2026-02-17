@@ -1060,7 +1060,7 @@ P.D.K 團隊 敬上
 
     # ★★★ 關鍵修改：使用 Thread (執行緒) 在背景寄信 ★★★
     # 這樣網頁就會立刻回應，不會卡住轉圈圈
-    Thread(target=send_async_email, args=(app._get_current_object(), msg)).start()
+    Thread(target=send_async_email, args=(app, msg)).start()
 
     return jsonify({'success': True, 'message': '驗證碼已發送！(請稍後檢查信箱)'})
 
