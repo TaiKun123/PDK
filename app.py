@@ -611,58 +611,51 @@ def wishlist_page():
 # ==============================================================================
 # ★★★ 新增：Email 寄送輔助函式 (放在路由之前) ★★★
 # ==============================================================================
-
+# 修改 1：訂單確認信 (給客人) - 改用 Brevo
 def send_order_confirmation_email(order):
-    """發送訂單成立通知信"""
     try:
-        # 將 JSON 字串轉回 List，這樣模板才能用迴圈跑
-        items = json.loads(order.cart_items)
-        
-        # 計算運費 (如果資料庫沒存運費欄位，這裡簡單反推：總額 - 商品總和)
-        products_total = sum(item['price'] * item['qty'] for item in items)
-        # 這裡加一個 getattr 避免出錯，若您未來有加入 discount 欄位
-        discount = int(getattr(order, 'discount', 0) if hasattr(order, 'discount') else 0)
-        order.shipping_fee = order.total_amount - products_total + discount
-
-        msg = Message(f"【P.D.K】訂單確認通知 (編號：{order.order_no})",
-                      recipients=[order.customer_email])
-        
-        # 渲染 HTML 模板
-        msg.html = render_template('email/order_confirmation.html', order=order, items=items)
-        mail.send(msg)
-        print(f"訂單 {order.order_no} 確認信已發送")
+        # 準備信件內容 (這裡簡單轉成字串，您也可以之後優化成 HTML)
+        subject = f"【P.D.K】訂單確認通知 (編號：{order.order_no})"
+        content = f"""
+        <html>
+        <body>
+            <h2>感謝您的訂單！</h2>
+            <p>親愛的 {order.customer_name}，我們已收到您的訂單。</p>
+            <p>訂單編號：{order.order_no}</p>
+            <p>訂單金額：NT$ {order.final_total}</p>
+            <p>我們會盡快為您安排出貨。</p>
+        </body>
+        </html>
+        """
+        # 使用背景發送 (Thread)
+        Thread(target=send_via_brevo, args=(order.customer_email, subject, content)).start()
+        print(f"✅ 訂單確認信已排入背景發送 (訂單 {order.order_no})")
     except Exception as e:
-        print(f"訂單確認信發送失敗: {e}")
+        print(f"❌ 訂單確認信發送失敗: {e}")
 
-def send_shipping_notification_email(order):
-    """發送出貨通知信"""
-    try:
-        msg = Message(f"【P.D.K】商品出貨通知 (編號：{order.order_no})",
-                      recipients=[order.customer_email])
-        msg.html = render_template('email/shipping_notification.html', order=order)
-        mail.send(msg)
-        print(f"訂單 {order.order_no} 出貨信已發送")
-    except Exception as e:
-        print(f"出貨通知信發送失敗: {e}")
-
+# 修改 2：商家通知信 (給您自己) - 改用 Brevo
 def send_merchant_new_order_email(order):
-    """發送新訂單通知給商家 (自己)"""
     try:
-        # 將 JSON 字串轉回 List
-        items = json.loads(order.cart_items)
+        subject = f"【新訂單】#{order.order_no} - {order.customer_name} - ${order.final_total}"
+        # 這裡的收件人請改成您自己的 Email
+        merchant_email = "pdk.salon.office@gmail.com" 
         
-        # 設定收件人為「官方信箱 (自己)」
-        merchant_email = app.config['MAIL_USERNAME'] # 也就是 pdk.salon.office@gmail.com
-        
-        msg = Message(f"【新訂單】#{order.order_no} - {order.customer_name} - ${order.total_amount}",
-                      recipients=[merchant_email]) # 寄給自己
-        
-        # 渲染 HTML 模板
-        msg.html = render_template('email/new_order_notification.html', order=order, items=items)
-        mail.send(msg)
-        print(f"商家通知信已發送 (訂單 {order.order_no})")
+        content = f"""
+        <html>
+        <body>
+            <h2>老闆，有新訂單了！</h2>
+            <p>訂單編號：{order.order_no}</p>
+            <p>顧客姓名：{order.customer_name}</p>
+            <p>訂單金額：NT$ {order.final_total}</p>
+            <p>請記得登入後台查看詳細內容並安排出貨。</p>
+        </body>
+        </html>
+        """
+        # 使用背景發送 (Thread)
+        Thread(target=send_via_brevo, args=(merchant_email, subject, content)).start()
+        print(f"✅ 商家通知信已排入背景發送")
     except Exception as e:
-        print(f"商家通知信發送失敗: {e}")
+        print(f"❌ 商家通知信發送失敗: {e}")
 
 # 修改後的 send_voucher_notification_email
 def send_voucher_notification_email(user, voucher_title, amount, description):
