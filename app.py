@@ -9,6 +9,7 @@ from flask_mail import Mail, Message
 from datetime import datetime, timedelta # 確保引入這兩個# ★★★ 新增：寄信模組
 from threading import Thread # ★★★ 新增這行
 import os
+import requests # 用來發送 API 請求
 import json
 import datetime
 import random
@@ -40,14 +41,36 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # 允許上傳的圖片格式
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
-# --- ★★★ 新增：背景非同步寄信函式 ★★★ ---
-def send_async_email(app, msg):
-    with app.app_context():
-        try:
-            mail.send(msg)
-            print(f"✅ 背景寄信成功: {msg.recipients}")
-        except Exception as e:
-            print(f"❌ 背景寄信失敗: {e}")
+# --- ★★★ Brevo 高速寄信函式 ★★★ ---
+def send_via_brevo(to_email, subject, html_content):
+    url = "https://api.brevo.com/v3/smtp/email"
+    # 從 Render 環境變數讀取金鑰 (如果本機測試讀不到，請確保有設定或暫時貼上)
+    api_key = os.environ.get('BREVO_API_KEY') 
+    
+    if not api_key:
+        print("❌ 錯誤：找不到 BREVO_API_KEY，無法寄信")
+        return
+
+    payload = {
+        "sender": {"name": "P.D.K Official", "email": "pdk.salon.office@gmail.com"},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": html_content
+    }
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "api-key": api_key
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code in [200, 201, 202]:
+            print(f"✅ Brevo 寄信成功！回應: {response.status_code}")
+        else:
+            print(f"❌ Brevo 寄信失敗: {response.text}")
+    except Exception as e:
+        print(f"❌ 連線錯誤: {e}")
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -1060,7 +1083,7 @@ P.D.K 團隊 敬上
 
     # ★★★ 關鍵修改：使用 Thread (執行緒) 在背景寄信 ★★★
     # 這樣網頁就會立刻回應，不會卡住轉圈圈
-    Thread(target=send_async_email, args=(app, msg)).start()
+    Thread(target=send_via_brevo, args=(email, "【P.D.K】您的註冊驗證碼", msg.body)).start()
 
     return jsonify({'success': True, 'message': '驗證碼已發送！(請稍後檢查信箱)'})
 
