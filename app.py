@@ -2094,17 +2094,22 @@ def send_birthday_vouchers():
     db.session.commit()
     return f"生日禮券發送完畢！本月壽星共 {len(birthday_users)} 人，實際發送 {count} 張，並已寄出通知信。"
 
-# --- 這是檔案最底端，且只能出現一次 ---
-if __name__ == '__main__':
-    with app.app_context():
-        # 1. 建立資料表 (如果是用 models.py，確保這裡能讀到)
-        db.create_all() 
+# 1. 讓 Render (Gunicorn) 啟動時也能執行資料庫初始化
+with app.app_context():
+    try:
+        # A. 建立資料表 (如果不存在)
+        db.create_all()
         
-        # 2. 初始化資料 (管理員、商品)
-        create_initial_data() 
+        # B. 初始化資料 (管理員、商品)
+        create_initial_data()
         
-        # 3. 初始化折扣券 (這就是你剛才缺少的！)
-        create_default_vouchers() 
+        # C. 初始化折扣券
+        create_default_vouchers()
+        
+        print("✅ 資料庫與初始資料檢查/建立完成")
+    except Exception as e:
+        print(f"❌ 初始化資料庫時發生錯誤: {e}")
 
-    # 4. 啟動
+# 2. 本機開發時的啟動入口
+if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
