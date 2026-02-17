@@ -1626,34 +1626,62 @@ def member():
 # ----------------------
 # 2. 我的帳號 (Dashboard - 會員儀表板)
 # ----------------------
+# ----------------------
+# 2. 我的帳號 (Dashboard - 會員儀表板)
+# ----------------------
 @app.route('/my_account')
 @login_required
 def dashboard():
-    # 1. 計算會員升級進度 (根據新規則 $2500 / $5000)
+    # 1. 取得目前累積數據 (如果沒有則為 0)
+    current_total = current_user.total_spend if current_user.total_spend else 0
+    current_count = current_user.orders_count if current_user.orders_count else 0
+    
+    # 預設變數
     next_tier = "Deep"
     gap_amount = 0
+    gap_orders = 0  # ★★★ 新增：還差幾單
     progress_percent = 0
     
-    # 確保 total_spend 有值
-    current_total = current_user.total_spend if current_user.total_spend else 0
-    
-    if current_user.member_tier == 'Pure' or current_user.orders_count < 1:
-        # 目標: Deep ($2500)
-        target = 2500
+    # 2. 判斷升級邏輯
+    if current_user.member_tier == 'Pure' or current_count < 1:
+        # --- 目前是 Pure (或一般)，目標 -> Deep ---
+        # 條件：消費滿 2500 (Deep 只看金額)
+        target_money = 2500
         next_tier = "Deep"
-        gap_amount = target - current_total
-        progress_percent = min(100, int((current_total / target) * 100))
+        
+        # 計算差距 (金額)
+        gap_amount = max(0, target_money - current_total)
+        # Deep 不看訂單數，所以 gap_orders 設為 0 或顯示不適用
+        gap_orders = 0 
+        
+        # 計算進度 %
+        progress_percent = min(100, int((current_total / target_money) * 100))
         
     elif current_user.member_tier == 'Deep':
-        # 目標: Keep ($5000)
-        target = 5000
+        # --- 目前是 Deep，目標 -> Keep ---
+        # 條件：消費滿 5000 或 訂單滿 5 單 (兩者擇一)
         next_tier = "Keep"
-        gap_amount = target - current_total
-        progress_percent = min(100, int((current_total / target) * 100))
+        target_money = 5000
+        target_orders = 5
         
-    else: # Keep (最高級)
+        # A. 計算金額差距
+        gap_amount = max(0, target_money - current_total)
+        money_progress = int((current_total / target_money) * 100)
+        
+        # B. 計算訂單差距 (總數 5 - 目前累積)
+        # 這就是您要修正的邏輯：看"總累積"，不是"升級後新增"
+        gap_orders = max(0, target_orders - current_count)
+        order_progress = int((current_count / target_orders) * 100)
+        
+        # C. 決定進度條顯示誰 (顯示進度比較快的那個)
+        progress_percent = max(money_progress, order_progress)
+        progress_percent = min(100, progress_percent)
+        
+    else: 
+        # --- 目前是 Keep (最高級) ---
         next_tier = "Max"
         gap_amount = 0
+        gap_orders = 0
         progress_percent = 100
 
     # 2. 統計有效優惠券
@@ -1665,12 +1693,13 @@ def dashboard():
                 if not uv.expiry_date or uv.expiry_date > now:
                     valid_vouchers_count += 1
 
-    # 3. 推薦碼使用次數 (被使用幾次 = 獲得幾張券)
+    # 3. 推薦碼使用次數
     referral_count = User.query.filter_by(referrer_id=current_user.id).count()
 
     return render_template('dashboard.html', 
                            next_tier=next_tier,
-                           gap_amount=max(0, gap_amount),
+                           gap_amount=gap_amount,
+                           gap_orders=gap_orders, # ★★★ 記得把這個傳給網頁
                            progress=progress_percent,
                            voucher_count=valid_vouchers_count,
                            referral_count=referral_count)
