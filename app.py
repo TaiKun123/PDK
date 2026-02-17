@@ -18,9 +18,17 @@ import string# ★★★ 新增：隨機數模組
 app = Flask(__name__)
 
 # ==============================================================================
-# 1. 設定 (Configuration)
+# 1. 設定 (Configuration) - 智慧切換資料庫
 # ==============================================================================
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///pdk.db'
+# 嘗試讀取 Render 的環境變數
+db_url = os.environ.get('DATABASE_URL')
+
+# 如果有讀到，且開頭是 postgres://，要修正為 postgresql:// (這是 Render 的小特例)
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+# 如果讀得到雲端網址就用雲端的，讀不到(在自己電腦)就用原本的 pdk.db
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///pdk.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'your_super_secret_key_change_this_in_production' 
 
