@@ -519,6 +519,20 @@ def shampoo_page():
     page_info = {'title_zh': '洗髮精', 'title_en': 'SHAMPOO'}
     return render_template('shampoo.html', products=products, page_info=page_info)
 
+@app.route('/quiz')
+def quiz_page():
+    # 撈出所有商品，打包給前端 JS
+    all_products = Product.query.all()
+    product_dict = {}
+    for p in all_products:
+        product_dict[p.id] = {
+            'name': p.name,
+            'price': p.price,
+            'image': url_for('static', filename=p.image) if p.image else '',
+            'description': p.description or ""  # ★★★ 新增：把資料庫的商品描述抓出來
+        }
+    return render_template('quiz.html', products_json=json.dumps(product_dict))
+
 @app.route('/category/<string:cat_name>')
 def category_page(cat_name):
     category_data = {

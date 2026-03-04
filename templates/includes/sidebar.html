@@ -5,7 +5,6 @@
     <div style="text-align: center; margin-bottom: 40px;">
         <h2 onclick="window.location.href='{{ url_for('about') }}'" style="color: #fff; font-size: 2rem; margin: 0; cursor: pointer;">P . D . K</h2>
     </div>
-
     <button class="dropdown-btn">商品列表 Products 
         <span class="arrow">▼</span>
     </button>
@@ -15,7 +14,8 @@
         <a href="/category/haircare">保養品 Care</a>
         <a href="/category/otherproduct">其他產品 Others</a>
     </div>
-
+    
+    <a href="/quiz">專屬髮品測驗 QUIZ</a>
     <a href="{{ url_for('promotions') }}">最新活動 Active</a>
     <a href="{{ url_for('faq') }}">常見問題 FAQ</a>
     <a href="{{ url_for('contact') }}">聯絡我們 Contact</a>

@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>智能選品推薦 QUIZ | P.D.K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* --- 測驗專屬 UI (針對手機版優化) --- */
+        .quiz-container {
+            max-width: 600px; margin: 80px auto 50px; padding: 20px;
+            color: #fff; position: relative; z-index: 10;
+        }
+        
+        /* --- 前置引言頁面 (首頁風格流動感) --- */
+        .intro-section {
+            padding: 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 60vh; 
+        }
+        
+        .intro-title {
+            font-size: 2.0rem; 
+            letter-spacing: 5px;
+            margin-bottom: 25px;
+            color: #fff;
+            font-family: 'Playfair Display', serif;
+            opacity: 0;
+            animation: fadeInUp 1.2s ease forwards 0.2s; 
+        }
+        
+        .intro-subtitle {
+            font-size: 1.2rem; 
+            color: #ccc;
+            line-height: 2.2;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+
+        /* 讓每一行文字有獨立的浮現動畫與樣式 */
+        .intro-line {
+            display: block;
+            opacity: 0;
+            margin-bottom: 8px;
+        }
+        .intro-line-1 { animation: fadeInUp 1.5s ease forwards 0.8s; }
+        
+        /* 黃金原則分三行，字體更大更顯眼 */
+        .intro-line-2 { 
+            animation: fadeInUp 1.5s ease forwards 1.6s; 
+            color: #fff; font-weight: bold; font-size: 1.2rem; margin-top: 25px; margin-bottom: 5px;
+        } 
+        .intro-line-3 { 
+            animation: fadeInUp 1.5s ease forwards 2.4s; 
+            color: #fff; font-weight: bold; font-size: 1.3rem; letter-spacing: 4px; margin-bottom: 5px;
+        }
+        .intro-line-4 { 
+            animation: fadeInUp 1.5s ease forwards 3.2s; 
+            color: #fff; font-weight: bold; font-size: 1.3rem; letter-spacing: 4px; margin-bottom: 25px;
+        }
+        
+        .intro-line-5 { animation: fadeInUp 1.5s ease forwards 4.0s; }
+        .intro-line-6 { animation: fadeInUp 1.5s ease forwards 4.8s; }
+
+        .intro-action {
+            opacity: 0;
+            animation: fadeInUp 1.5s ease forwards 5.2s; 
+            pointer-events: auto; 
+        }
+
+        /* 沿用首頁 btn-minimal 按鈕風格 */
+        .btn-minimal {
+            display: inline-block;
+            padding: 15px 40px;
+            border: 1px solid #fff;
+            color: #fff;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 0.95rem;
+            transition: all 0.2s ease; 
+            cursor: pointer;
+            background: transparent;
+            border-radius: 2px;
+        }
+        
+        .btn-minimal:hover {
+            background-color: #fff;
+            color: #000;
+        }
+
+        .btn-minimal:active {
+            transform: scale(0.95); 
+            background-color: #e0e0e0; 
+            border-color: #e0e0e0;
+            color: #000;
+        }
+
+        /* 淡入上浮動畫定義 */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- 進度條與 STEP (改白色) --- */
+        .progress-bar-bg {
+            width: 100%; height: 2px; background: rgba(255,255,255,0.2); margin-bottom: 40px; position: relative;
+        }
+        .progress-bar-fill {
+            height: 100%; background: #fff; width: 0%; transition: width 0.4s ease;
+        }
+        .step-indicator {
+            text-align: center; color: #fff; 
+            font-family: 'Playfair Display', serif; 
+            letter-spacing: 2px; margin-bottom: 20px; font-size: 1rem;
+        }
+
+        /* --- 問題卡片 (取消外框，變成通透感) --- */
+        #quizArea { display: none; opacity: 0; transition: opacity 0.5s; padding: 10px; }
+        .question-card {
+            display: none; opacity: 0; 
+            transform: translateY(20px); 
+            transition: all 0.5s ease;
+        }
+        .question-card.active {
+            display: block; opacity: 1; transform: translateY(0);
+        }
+        
+        .question-title {
+            font-size: 1.2rem; margin-bottom: 10px; line-height: 1.5; color: #fff; text-align: left;
+            letter-spacing: 1px;
+        }
+        .question-subtitle {
+            font-size: 0.9rem; color: #e6e6e6; text-align: left; margin-bottom: 30px; letter-spacing: 1px;
+        }
+
+        /* --- 選項按鈕 --- */
+        .option-btn {
+            display: block; width: 100%; padding: 18px 20px; margin-bottom: 15px;
+            background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); 
+            color: #ccc; text-align: left; cursor: pointer; transition: 0.3s; border-radius: 4px;
+            font-size: 1rem; line-height: 1.5; backdrop-filter: blur(5px);
+            
+            opacity: 0;
+            transform: translateX(40px);
+        }
+        .option-btn:hover, .option-btn:active { 
+            background: rgba(255,255,255,0.1); border-color: #888; 
+        }
+        .option-btn.selected { 
+            background: #fff; color: #000; border-color: #fff; font-weight: bold; 
+        }
+
+        .slide-in-right {
+            animation: slideInRight 1.2s ease-out forwards;
+        }
+        @keyframes slideInRight {
+            to { opacity: 1; transform: translateX(0); }
+        }
+        /* 導航按鈕 */
+        .quiz-actions { display: flex; justify-content: space-between; margin-top: 25px; }
+        .btn-nav {
+            padding: 12px 25px; background: transparent; color: #fff; font-size: 0.9rem;
+            border: 1px solid #666; cursor: pointer; transition: 0.3s; letter-spacing: 1px; border-radius: 2px;
+        }
+        .btn-nav:hover, .btn-nav:active { background: #fff; color: #000; }
+        .btn-nav-full { width: 100%; background: #fff; color: #000; padding: 15px; font-weight: bold; border: none; }
+
+        /* 推薦結果區域 */
+        .result-section { display: none; opacity: 0; transform: translateY(20px); transition: 0.5s; }
+        .result-section.active { display: block; opacity: 1; transform: translateY(0); }
+        
+        .salon-guide-box {
+            background: rgba(255, 255, 255, 0.05); border-left: 3px solid #fff;
+            padding: 20px; margin-bottom: 40px; text-align: left;
+        }
+        
+        .result-category-title {
+            font-family: 'Playfair Display', serif; font-size: 1.3rem; 
+            border-bottom: 1px solid #444; padding-bottom: 8px; margin: 30px 0 15px;
+            text-align: left; letter-spacing: 1px;
+        }
+        
+        /* --- 推薦結果商品樣式 --- */
+        .quiz-product-row {
+            display: flex; flex-direction: column; 
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1); padding: 15px; margin-bottom: 15px;
+            border-radius: 4px; transition: background 0.3s;
+        }
+        .quiz-product-row:hover, .quiz-product-row:active { background: rgba(255,255,255,0.08); }
+        
+        /* 上半部：照片、標題、價錢、購物車 */
+        .quiz-product-top {
+            display: flex; align-items: center; width: 100%;
+        }
+        
+        .quiz-product-link { display: flex; flex: 1; text-decoration: none; align-items: center; cursor: pointer; }
+        
+        .quiz-product-img {
+            width: 70px; height: 90px; background-size: cover; background-position: center;
+            background-color: #222; margin-right: 15px; border-radius: 2px; flex-shrink: 0;
+        }
+        .quiz-product-info { flex: 1; text-align: left; display: flex; flex-direction: column; justify-content: center;}
+        
+        .quiz-product-name { font-size: 1.05rem; color: #fff; font-weight: bold; margin-bottom: 6px; letter-spacing: 1px; }
+        
+        .quiz-product-price { color: #aaa; font-family: 'Times New Roman', serif; font-size: 1rem; }
+        
+        /* 商品描述 (橫跨底部，深灰色，改為實線) */
+        .quiz-product-desc-bottom {
+            margin-top: 15px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.15);
+            font-size: 0.95rem; color: #ebebeb; line-height: 1.6; text-align: left; width: 100%;
+        }
+        
+        /* 購物車按鈕 */
+        .quiz-action-btn { 
+            cursor: pointer; width: 36px; height: 36px;
+            border: 1px solid rgba(255,255,255,0.5); border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            margin-left: 15px; flex-shrink: 0; transition: 0.3s; 
+        }
+        .quiz-action-icon {
+            width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 1.2; 
+            stroke-linecap: round; stroke-linejoin: round; transition: 0.3s;
+        }
+        .quiz-action-btn:hover { background: #fff; border-color: #fff; }
+        .quiz-action-btn:hover .quiz-action-icon { stroke: #000; }
+    </style>
+</head>
+<body>
+    <div class="bg-fixed-layer"></div>
+    <nav class="navbar">
+        <div class="menu-toggle" onclick="openNav()">&#9776;</div>
+        <a href="/" class="logo">P  D  K</a>
+        <div class="cart-wrapper" onclick="toggleCart()">
+            <svg class="cart-icon-svg" viewBox="0 0 24 24">
+                <path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/>
+                <circle cx="9" cy="20" r="1.5" fill="#fff"/>
+                <circle cx="17" cy="20" r="1.5" fill="#fff"/>
+            </svg>
+            <span class="cart-badge">0</span>
+        </div>
+    </nav>
+
+    {% include 'includes/sidebar.html' %}
+    {% include 'includes/cart_drawer.html' %}
+
+    <div class="quiz-container">
+        
+        <div id="introArea" class="intro-section">
+            <h1 class="intro-title">P.D.K 的檢測之旅</h1>
+            
+            <div class="intro-subtitle">
+                <span class="intro-line intro-line-1">在開始挑選您的護理旅程之前</span>
+                
+                <span class="intro-line intro-line-2">請記得：</span>
+                <span class="intro-line intro-line-3">洗髮精照顧頭皮</span>
+                <span class="intro-line intro-line-4">保養品修護髮絲</span>
+                
+                <span class="intro-line intro-line-5">透過 6 個簡單的日常提問</span>
+                <span class="intro-line intro-line-6">我們將配對最適合您的養護產品</span>
+            </div>
+            
+            <div class="intro-action">
+                <button class="btn-minimal" onclick="startQuiz()">ENTRY</button>
+            </div>
+        </div>
+
+        <div id="quizArea">
+            <div class="step-indicator">STEP <span id="currentStepText">1</span> / 6</div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="progressBar"></div>
+            </div>
+
+            <div class="question-card active" data-step="1">
+                <div class="question-title">您的「頭皮出油」狀況是？</div>
+                <div class="question-subtitle">（單選）</div>
+                <button class="option-btn" onclick="selectSingle(this, 'q1', 'A')"><strong>大油田：</strong>洗完頭隔天就明顯出油，有時會帶點頭皮氣味。</button>
+                <button class="option-btn" onclick="selectSingle(this, 'q1', 'B')"><strong>微出油：</strong>到隔天下午才開始覺得髮根微出油、略顯悶熱。</button>
+                <button class="option-btn" onclick="selectSingle(this, 'q1', 'C')"><strong>偏乾緊繃：</strong>幾乎不太出油，但洗完頭偶爾覺得頭皮緊繃乾澀。</button>
+                <button class="option-btn" onclick="selectSingle(this, 'q1', 'D')"><strong>健康穩定：</strong>狀態穩定，不太出油也不乾澀，希望維持現狀。</button>
+            </div>
+
+            <div class="question-card" data-step="2">
+                <div class="question-title">您目前有以下哪些「頭皮困擾」？</div>
+                <div class="question-subtitle">（可複選）</div>
+                <button class="option-btn" onclick="selectMulti(this, 'q2', 'A')"><strong>頭皮屑 / 乾癢：</strong>換季或壓力大時，容易覺得頭皮癢或出現皮屑。</button>
+                <button class="option-btn" onclick="selectMulti(this, 'q2', 'B')"><strong>敏感泛紅：</strong>頭皮偏敏感，偶爾會泛紅或感到不適。</button>
+                <button class="option-btn" onclick="selectMulti(this, 'q2', 'C')"><strong>落髮 / 脆弱：</strong>近期覺得掉髮量變多，或感覺髮根較脆弱。</button>
+                <button class="option-btn" onclick="selectMulti(this, 'q2', 'D')"><strong>悶熱異味：</strong>長時間戴安全帽或熬夜，頭皮容易悶熱出汗。</button>
+                <button class="option-btn none-of-above" onclick="selectNoneOfAbove(this, 'q2', 'E')"><strong>健康無感：</strong>目前頭皮狀態很健康，沒有上述困擾。</button>
+            </div>
+
+            <div class="question-card" data-step="3">
+                <div class="question-title">您最近幾個月內，有進行過染髮或燙髮嗎？</div>
+                <div class="question-subtitle">（單選）</div>
+                <button class="option-btn" onclick="selectSingle(this, 'q3', 'A')"><strong>漂髮 / 特殊色：</strong>髮絲偏乾，很在意退色狀況。</button>
+                <button class="option-btn" onclick="selectSingle(this, 'q3', 'B')"><strong>頻繁燙染：</strong>髮尾較容易分岔或斷裂。</button>
+                <button class="option-btn" onclick="selectSingle(this, 'q3', 'C')"><strong>偶爾燙染 / 微受損：</strong>僅髮尾稍微乾燥或微毛躁。</button>
+                <button class="option-btn" onclick="selectSingle(this, 'q3', 'D')"><strong>原生健康髮：</strong>沒有染燙過，髮絲維持健康原狀。</button>
+            </div>
+
+            <div class="question-card" data-step="4">
+                <div class="question-title">您平時的「吹整與外在環境」習慣是？</div>
+                <div class="question-subtitle">（可複選）</div>
+                <button class="option-btn" onclick="selectMulti(this, 'q4', 'A')"><strong>重度熱傷害：</strong>出門前習慣使用電棒捲或離子夾做造型。</button>
+                <button class="option-btn" onclick="selectMulti(this, 'q4', 'B')"><strong>日常熱風：</strong>洗完頭一定會用吹風機熱風徹底吹乾並順髮。</button>
+                <button class="option-btn" onclick="selectMulti(this, 'q4', 'C')"><strong>戶外曝曬：</strong>經常在戶外活動，頭髮容易吹風或接觸陽光。</button>
+                <button class="option-btn none-of-above" onclick="selectNoneOfAbove(this, 'q4', 'D')"><strong>隨意自然乾：</strong>沒有特別的造型習慣，通常只是隨意吹乾。</button>
+            </div>
+
+            <div class="question-card" data-step="5">
+                <div class="question-title">挑選「髮絲保養品」時，您最偏好哪種使用感受？</div>
+                <div class="question-subtitle">（單選）</div>
+                <button class="option-btn" onclick="selectSingle(this, 'q5', 'A')"><strong>清爽水感：</strong>希望質地輕盈，不要有黏膩負擔。</button>
+                <button class="option-btn" onclick="selectSingle(this, 'q5', 'B')"><strong>深度滋潤：</strong>喜歡精華油或乳霜帶來的包覆修護感。</button>
+                <button class="option-btn" onclick="selectSingle(this, 'q5', 'C')"><strong>適中保濕：</strong>能幫助撫平毛躁並提升柔順感即可。</button>
+            </div>
+
+            <div class="question-card" data-step="6">
+                <div class="question-title">洗完頭吹乾後，您最希望能達到什麼效果？</div>
+                <div class="question-subtitle">（可複選，最多 2 項）</div>
+                <button class="option-btn" onclick="selectMultiLimit(this, 'q6', 'A', 2)"><strong>蓬鬆站立：</strong>希望髮根能維持自然蓬鬆，改善細軟扁塌。</button>
+                <button class="option-btn" onclick="selectMultiLimit(this, 'q6', 'B', 2)"><strong>極度柔順：</strong>希望髮絲柔順好梳理，減少洗後打結狀況。</button>
+                <button class="option-btn" onclick="selectMultiLimit(this, 'q6', 'C', 2)"><strong>自帶光澤：</strong>希望提升頭髮的自然光澤，表面平整不毛躁。</button>
+                <button class="option-btn" onclick="selectMultiLimit(this, 'q6', 'D', 2)"><strong>彈力強韌：</strong>希望髮芯健康有彈性，增加整體強韌度。</button>
+            </div>
+
+            <div class="quiz-actions">
+                <button class="btn-nav" id="btnPrev" onclick="prevStep()" style="visibility: hidden;">上一步</button>
+                <button class="btn-nav" id="btnNext" onclick="nextStep()" style="background: #fff; color: #000;">下一步</button>
+            </div>
+        </div>
+
+        <div id="resultArea" class="result-section">
+            <div style="text-align: center; margin-bottom: 25px;">
+                <h2 style="font-size: 1.8rem; letter-spacing: 2px; margin-bottom: 10px;">專屬您的 P.D.K 養護方案</h2>
+            </div>
+
+            <div class="salon-guide-box">
+                <strong style="color: #fff; font-size: 1.1rem; margin-bottom: 12px; display: block; letter-spacing: 1px;">【P.D.K 沙龍級洗護指南】</strong>
+                <p style="color: #ddd; font-size: 1rem; line-height: 2.0; margin: 0; letter-spacing: 1px;">
+                    若您的頭皮與髮絲有著不同的需求<br>
+                    <span style="font-size: 0.9rem; color: #d2d2d2;">（例如：頭皮出油，但髮尾受損）</span><br>
+                    請優先依照下方建議的<br>
+                    <strong style="color: #fff; font-size: 1.1rem; letter-spacing: 2px;">洗髮精照顧頭皮</strong><br>
+                    並搭配 <strong style="color: #fff; font-size: 1.1rem; letter-spacing: 2px;">保養品修護髮絲</strong><br>
+                    <span style="display: block; margin-top: 10px;">依下方產品功能自行搭配您的養護方案</span>
+                </p>
+            </div>
+
+            <div class="result-category-title">01. 專屬洗髮精推薦</div>
+            <div id="shampooResults"></div>
+
+            <div class="result-category-title">02. 專屬潤髮乳推薦</div>
+            <div id="conditionerResults"></div>
+
+            <div class="result-category-title">03. 免沖洗與頭皮保養推薦</div>
+            <div id="haircareResults"></div>
+
+            <button class="btn-nav btn-nav-full" style="margin-top: 30px; background: transparent; color: #fff; border: 1px solid #666;" onclick="location.reload()">重新測驗</button>
+        </div>
+
+    </div>
+
+<script>
+    const DB_PRODUCTS = {{ products_json | safe }};
+    
+    // 矩陣權重表
+    const weightMatrix = {
+        shampoo: {
+            "sh_004": { "強力控油": 3, "去味淨化": 2, "蓬鬆站立": 1.5, "輕度修復": 0.5 }, // 淨化控油
+            "sh_002": { "蓬鬆站立": 3, "強健髮根": 1.5, "溫和控油": 1.5, "去味淨化": 1 }, // 輕柔活力
+            "sh_001": { "去屑止癢": 3, "頭皮舒緩": 1.5, "溫和控油": 1.5, "強健髮根": 1 }, // 淨屑舒活
+            "sh_003": { "頭皮保濕": 2, "鎖水柔順": 2, "蓬鬆站立": 1.5, "溫和控油": 1.5 }, // 翅藻植翠
+            "sh_005": { "染後護色": 3, "重度修復": 1.5, "亮澤撫平": 1.5, "鎖水柔順": 1 }  // 極致燙染
+        },
+        conditioner: {
+            "co_001": { "鎖水柔順": 2, "彈力強韌": 2, "輕度修復": 1.5, "染後護色": 1.5 }, // 翅藻乳
+            "co_002": { "重度修復": 2.5, "染後護色": 2, "鎖水柔順": 1.5, "彈力強韌": 1 }  // 極致素
+        },
+        haircare: {
+            "hc_003": { "鎖水柔順": 2.5, "亮澤撫平": 1.5, "染後護色": 1.5, "日常防護": 1.5 }, // 芳香乳
+            "hc_002": { "染後護色": 3, "亮澤撫平": 1.5, "重度修復": 1.5, "抗熱防護": 1 },     // 堅果油
+            "hc_004": { "鎖水柔順": 2, "染後護色": 2, "亮澤撫平": 2, "輕盈無負擔": 1 },       // 彈力亮澤液
+            "hc_001": { "鎖水柔順": 2.5, "日常防護": 2, "彈力強韌": 1.5, "輕度修復": 1 },     // Q10
+            "頭皮水_ID_FIX_LATER": { "頭皮舒緩": 2, "去屑止癢": 2, "頭皮保濕": 1.5, "強健髮根": 1.5 } 
+        }
+    };
+
+    let currentStep = 1;
+    const totalSteps = 6;
+    let answers = { q1:[], q2:[], q3:[], q4:[], q5:[], q6:[] };
+
+    function startQuiz() {
+        document.getElementById('introArea').style.display = 'none';
+        let quizArea = document.getElementById('quizArea');
+        quizArea.style.display = 'block';
+        setTimeout(() => { quizArea.style.opacity = 1; }, 50);
+        updateProgress();
+    }
+
+    function updateProgress() {
+        document.getElementById('currentStepText').innerText = currentStep;
+        document.getElementById('progressBar').style.width = ((currentStep / totalSteps) * 100) + '%';
+        
+        document.querySelectorAll('.question-card').forEach(card => {
+            card.classList.remove('active');
+            card.querySelectorAll('.option-btn').forEach(btn => {
+                btn.classList.remove('slide-in-right');
+            });
+        });
+
+        let currentCard = document.querySelector(`.question-card[data-step="${currentStep}"]`);
+        currentCard.classList.add('active');
+
+        let buttons = currentCard.querySelectorAll('.option-btn');
+        buttons.forEach((btn, index) => {
+            setTimeout(() => {
+                btn.classList.add('slide-in-right');
+            }, 200 * index); 
+        });
+
+        document.getElementById('btnPrev').style.visibility = (currentStep === 1) ? 'hidden' : 'visible';
+        document.getElementById('btnNext').innerText = (currentStep === totalSteps) ? '看分析結果' : '下一步';
+    }
+
+    function selectSingle(btn, qId, val) {
+        let parent = btn.parentElement;
+        parent.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        answers[qId] = [val];
+    }
+
+    function selectMulti(btn, qId, val) {
+        let parent = btn.parentElement;
+        let noneBtn = parent.querySelector('.none-of-above');
+        
+        if (btn.classList.contains('selected')) {
+            btn.classList.remove('selected');
+            answers[qId] = answers[qId].filter(v => v !== val);
+        } else {
+            if(noneBtn && noneBtn.classList.contains('selected')) {
+                noneBtn.classList.remove('selected');
+                answers[qId] = answers[qId].filter(v => v !== 'E' && v !== 'D');
+            }
+            btn.classList.add('selected');
+            answers[qId].push(val);
+        }
+    }
+
+    function selectNoneOfAbove(btn, qId, val) {
+        let parent = btn.parentElement;
+        parent.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        answers[qId] = [val];
+    }
+
+    function selectMultiLimit(btn, qId, val, limit) {
+        if (btn.classList.contains('selected')) {
+            btn.classList.remove('selected');
+            answers[qId] = answers[qId].filter(v => v !== val);
+        } else {
+            if(answers[qId].length >= limit) {
+                let firstSelected = answers[qId].shift();
+                let btns = btn.parentElement.querySelectorAll('.option-btn');
+                btns.forEach(b => b.classList.remove('selected'));
+                answers[qId].push(val);
+                answers[qId].forEach(ansVal => {
+                    btns.forEach(b => {
+                        if(b.getAttribute('onclick').includes(`'${ansVal}'`)) b.classList.add('selected');
+                    });
+                });
+            } else {
+                btn.classList.add('selected');
+                answers[qId].push(val);
+            }
+        }
+    }
+
+    function prevStep() {
+        if (currentStep > 1) { currentStep--; updateProgress(); }
+    }
+
+    function nextStep() {
+        let currentQ = 'q' + currentStep;
+        if (answers[currentQ].length === 0) {
+            alert('請至少選擇一個選項喔！'); return;
+        }
+
+        if (currentStep < totalSteps) {
+            currentStep++; updateProgress();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            calculateResult();
+        }
+    }
+
+    function calculateResult() {
+        let scalpTags = {
+            "強力控油":0, "溫和控油":0, "頭皮保濕":0, "去味淨化":0,
+            "去屑止癢":0, "頭皮舒緩":0, "強健髮根":0, "蓬鬆站立":0, "日常防護":0
+        };
+        let hairTags = {
+            "染後護色":0, "重度修復":0, "輕度修復":0, "抗熱防護":0, 
+            "日常防護":0, "輕盈無負擔":0, "鎖水柔順":0, "亮澤撫平":0, "彈力強韌":0, "頭皮保濕":0
+        };
+
+        if(answers.q1.includes('A')) { scalpTags['強力控油']+=10; scalpTags['去味淨化']+=5; }
+        if(answers.q1.includes('B')) { scalpTags['溫和控油']+=8; scalpTags['蓬鬆站立']+=3; }
+        if(answers.q1.includes('C')) { scalpTags['頭皮保濕']+=10; scalpTags['頭皮舒緩']+=3; }
+        if(answers.q1.includes('D')) { scalpTags['溫和控油']+=5; scalpTags['頭皮保濕']+=5; }
+        
+        if(answers.q2.includes('A')) { scalpTags['去屑止癢']+=15; }
+        if(answers.q2.includes('B')) { scalpTags['頭皮舒緩']+=10; scalpTags['頭皮保濕']+=3; }
+        if(answers.q2.includes('C')) { scalpTags['強健髮根']+=10; scalpTags['蓬鬆站立']+=3; }
+        if(answers.q2.includes('D')) { scalpTags['去味淨化']+=8; scalpTags['強力控油']+=3; }
+        if(answers.q2.includes('E')) { scalpTags['日常防護']+=3; }
+
+        if(answers.q3.includes('A')) { hairTags['染後護色']+=12; scalpTags['頭皮保濕']+=2; }
+        if(answers.q3.includes('B')) { hairTags['重度修復']+=12; hairTags['鎖水柔順']+=3; }
+        if(answers.q3.includes('C')) { hairTags['輕度修復']+=6; hairTags['鎖水柔順']+=3; }
+        if(answers.q3.includes('D')) { hairTags['日常防護']+=5; hairTags['彈力強韌']+=3; }
+
+        if(answers.q4.includes('A')) { hairTags['抗熱防護']+=8; hairTags['重度修復']+=2; }
+        if(answers.q4.includes('B')) { hairTags['抗熱防護']+=3; hairTags['鎖水柔順']+=2; }
+        if(answers.q4.includes('C')) { hairTags['日常防護']+=5; hairTags['亮澤撫平']+=2; }
+        if(answers.q4.includes('D')) { hairTags['輕盈無負擔']+=3; }
+
+        if(answers.q5.includes('A')) { hairTags['輕盈無負擔']+=8; hairTags['亮澤撫平']+=2; }
+        if(answers.q5.includes('B')) { hairTags['鎖水柔順']+=8; hairTags['重度修復']+=3; }
+        if(answers.q5.includes('C')) { hairTags['彈力強韌']+=6; hairTags['亮澤撫平']+=3; }
+
+        if(answers.q6.includes('A')) { scalpTags['蓬鬆站立']+=6; scalpTags['強健髮根']+=2; }
+        if(answers.q6.includes('B')) { hairTags['鎖水柔順']+=6; }
+        if(answers.q6.includes('C')) { hairTags['亮澤撫平']+=6; }
+        if(answers.q6.includes('D')) { hairTags['彈力強韌']+=6; hairTags['輕度修復']+=2; }
+
+        function rankProducts(categoryKeys, tagsObj) {
+            let results = [];
+            for (let id in categoryKeys) {
+                let score = 0;
+                let productDNA = categoryKeys[id];
+                for (let tag in productDNA) {
+                    score += (tagsObj[tag] || 0) * productDNA[tag];
+                }
+                results.push({ id: id, score: score });
+            }
+            results.sort((a, b) => b.score - a.score);
+            return results;
+        }
+
+        let bestShampoos = rankProducts(weightMatrix.shampoo, scalpTags);
+        let bestConditioners = rankProducts(weightMatrix.conditioner, hairTags);
+        let bestHaircares = rankProducts(weightMatrix.haircare, hairTags);
+
+        document.getElementById('quizArea').style.display = 'none';
+        document.getElementById('resultArea').classList.add('active');
+
+        if (bestShampoos[0].score === 0) bestShampoos = [{id: 'sh_003', score: 1}, {id: 'sh_002', score: 1}];
+        if (bestConditioners[0].score === 0) bestConditioners = [{id: 'co_001', score: 1}];
+        if (bestHaircares[0].score === 0) bestHaircares = [{id: 'hc_003', score: 1}, {id: 'hc_001', score: 1}];
+
+        renderResultBlock('shampooResults', [bestShampoos[0], bestShampoos[1]]);
+        renderResultBlock('conditionerResults', [bestConditioners[0]]);
+        renderResultBlock('haircareResults', [bestHaircares[0], bestHaircares[1]]);
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderResultBlock(containerId, dataArray) {
+        let container = document.getElementById(containerId);
+        let html = '';
+
+        dataArray.forEach(item => {
+            if(!item || !item.id) return;
+            let productData = DB_PRODUCTS[item.id];
+            
+            if(!productData) return; 
+
+            let bgStyle = productData.image ? `background-image: url('${productData.image}');` : ``;
+            let bgClass = productData.image ? '' : `product-bg-${item.id}`;
+
+            let fullDesc = productData.description || '專屬推薦養護商品';
+            let quickViewDesc = fullDesc;
+            if (fullDesc.includes('======')) {
+                let parts = fullDesc.split('======');
+                quickViewDesc = parts.length > 1 ? parts[1] : parts[0];
+            }
+            let safeDesc = quickViewDesc.replace(/\n/g, '').replace(/\r/g, '').replace(/'/g, "\\'");
+
+            html += `
+                <div class="quiz-product-row">
+                    <div class="quiz-product-top">
+                        <a href="/product/${item.id}" class="quiz-product-link">
+                            <div class="quiz-product-img ${bgClass}" style="${bgStyle}"></div>
+                            <div class="quiz-product-info">
+                                <div class="quiz-product-name">${productData.name}</div>
+                                <div class="quiz-product-price">NT$ ${productData.price}</div>
+                            </div>
+                        </a>
+                        
+                        <div class="quiz-action-btn" onclick="openQuickView('${item.id}', '${productData.name}', ${productData.price}, '${safeDesc}', '${productData.image || ''}')">
+                            <svg class="quiz-action-icon" viewBox="0 0 24 24">
+                                <path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/>
+                                <circle cx="9" cy="20" r="1.5" fill="none" stroke="currentColor"/>
+                                <circle cx="17" cy="20" r="1.5" fill="none" stroke="currentColor"/>
+                            </svg>
+                        </div>
+                    </div>
+                    
+                    <a href="/product/${item.id}" style="text-decoration: none;">
+                        <div class="quiz-product-desc-bottom">${quickViewDesc}</div>
+                    </a>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+</script>
+</body>
+</html>

@@ -189,6 +189,7 @@
                             {% if order.payment_method == 'linepay' %} LINE Pay
                             {% elif order.payment_method == 'atm' %} 銀行轉帳
                             {% elif order.payment_method == 'jiekou' %} 街口支付
+                            {% elif order.payment_method == 'cod' %} 貨到付款
                             {% else %} {{ order.payment_method }}
                             {% endif %}
                         </div>
