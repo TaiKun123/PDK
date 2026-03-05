@@ -8,6 +8,38 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* =========================================
+           ★★★ 修復長圖被截斷的專屬 CSS ★★★ 
+           ========================================= */
+        
+        /* 1. 釋放輪播大外框的高度限制，讓它可以自由伸縮 */
+        .pdp-wrapper .swiper {
+            aspect-ratio: auto !important; 
+            height: auto !important;
+        }
+        
+        /* 2. 把 4/5 的比例限制「交還給第一張主圖」 */
+        .slide-content-main {
+            aspect-ratio: 4/5; 
+            width: 100%;
+        }
+        
+        /* 3. 讓長圖從頂部開始對齊 (覆寫原本的垂直置中)，避免上下被切 */
+        .tag-slide {
+            align-items: flex-start !important; 
+        }
+        
+        /* 4. 確保長圖寬度撐滿，高度按真實比例自動拉長 */
+        .product-tag-section {
+            width: 100%;
+        }
+        .product-tag-section img {
+            width: 100%;
+            height: auto !important;
+            display: block; /* 移除底部小縫隙 */
+        }
+    </style>
 </head>
 <body class="product-page">
     <div class="bg-fixed-layer"></div>
@@ -33,21 +65,22 @@
             <div class="swiper-wrapper">
                 <div class="swiper-slide">
                     {% if product.image %}
-                    <div class="slide-content" style="background-image: url('{{ url_for('static', filename=product.image) }}'); background-size: cover; background-position: center; height: 100%;">
+                    <div class="slide-content slide-content-main" style="background-image: url('{{ url_for('static', filename=product.image) }}'); background-size: cover; background-position: center;">
                     </div>
                     {% else %}
-                    <div class="slide-content" style="background:#000; color:#fff; display:flex; align-items:center; justify-content:center;">
+                    <div class="slide-content slide-content-main" style="background:#000; color:#fff; display:flex; align-items:center; justify-content:center;">
                         暫無圖片
                     </div>
                     {% endif %}
                 </div>
-                <div class="swiper-slide">
-                    <div class="product-tag-section" style="margin-top: 40px; text-align: center;">
-                        {% if product.tag_image %}
-                            <img src="{{ url_for('static', filename=product.tag_image) }}" alt="Product Tag" style="max-width: 100%; height: auto;">
-                        {% endif %}
+                
+                {% if product.tag_image %}
+                <div class="swiper-slide tag-slide">
+                    <div class="product-tag-section">
+                        <img src="{{ url_for('static', filename=product.tag_image) }}" alt="Product Tag">
                     </div>
                 </div>
+                {% endif %}
             </div>
             <div class="swiper-pagination"></div>
         </div>
@@ -120,8 +153,10 @@
         };
         let buyQty = 1;
 
+        // ★★★ Swiper 設定更新 ★★★
         var swiper = new Swiper(".mySwiper", {
-            loop: true,
+            loop: false,            // 關閉 loop 模式 (開啟 autoHeight 時 loop 容易導致高度計算閃爍)
+            autoHeight: true,       // 關鍵開啟！這會讓輪播圖自動適應目前圖片的真實高度
             pagination: { el: ".swiper-pagination", clickable: true },
             speed: 400,
             grabCursor: true
