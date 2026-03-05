@@ -10,34 +10,38 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         /* =========================================
-           ★★★ 修復長圖被截斷的專屬 CSS ★★★ 
+           ★★★ 商品圖片與下方長圖專屬 CSS ★★★ 
            ========================================= */
         
-        /* 1. 釋放輪播大外框的高度限制，讓它可以自由伸縮 */
+        /* 上方主圖輪播容器：維持完美的 4/5 比例 */
         .pdp-wrapper .swiper {
-            aspect-ratio: auto !important; 
-            height: auto !important;
+            aspect-ratio: 4/5;
+            width: 100%;
+            background-color: #000;
         }
         
-        /* 2. 把 4/5 的比例限制「交還給第一張主圖」 */
+        /* 主圖：填滿框框 */
         .slide-content-main {
-            aspect-ratio: 4/5; 
             width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
         }
         
-        /* 3. 讓長圖從頂部開始對齊 (覆寫原本的垂直置中)，避免上下被切 */
-        .tag-slide {
-            align-items: flex-start !important; 
-        }
-        
-        /* 4. 確保長圖寬度撐滿，高度按真實比例自動拉長 */
-        .product-tag-section {
+        /* 下方標籤長圖容器：寬度 100%，高度自動往下長 */
+        .bottom-tag-image-container {
             width: 100%;
+            margin-top: 20px; 
+            padding: 0 10px; /* 左右留一點點邊距，讓畫面透氣 */
+            text-align: center;
         }
-        .product-tag-section img {
-            width: 100%;
-            height: auto !important;
-            display: block; /* 移除底部小縫隙 */
+
+        .bottom-tag-image-container img {
+            width: 100%;       /* 寬度撐滿 */
+            height: auto;      /* 高度依比例自由延伸 */
+            display: block;
+            border-radius: 4px;/* 微圓角增添質感 */
+            border: 1px solid rgba(255,255,255,0.1); /* 淡淡的邊框 */
         }
     </style>
 </head>
@@ -65,23 +69,14 @@
             <div class="swiper-wrapper">
                 <div class="swiper-slide">
                     {% if product.image %}
-                    <div class="slide-content slide-content-main" style="background-image: url('{{ url_for('static', filename=product.image) }}'); background-size: cover; background-position: center;">
-                    </div>
+                    <div class="slide-content-main" style="background-image: url('{{ url_for('static', filename=product.image) }}');"></div>
                     {% else %}
-                    <div class="slide-content slide-content-main" style="background:#000; color:#fff; display:flex; align-items:center; justify-content:center;">
+                    <div class="slide-content-main" style="background:#000; color:#fff; display:flex; align-items:center; justify-content:center;">
                         暫無圖片
                     </div>
                     {% endif %}
                 </div>
-                
-                {% if product.tag_image %}
-                <div class="swiper-slide tag-slide">
-                    <div class="product-tag-section">
-                        <img src="{{ url_for('static', filename=product.tag_image) }}" alt="Product Tag">
-                    </div>
                 </div>
-                {% endif %}
-            </div>
             <div class="swiper-pagination"></div>
         </div>
 
@@ -127,6 +122,13 @@
 
             </div>
         </div>
+
+        {% if product.tag_image %}
+        <div class="bottom-tag-image-container">
+            <img src="{{ url_for('static', filename=product.tag_image) }}" alt="{{ product.name }} 產品介紹">
+        </div>
+        {% endif %}
+        
     </div>
 
     <div class="fixed-bottom-bar">
@@ -141,7 +143,8 @@
             加入購物車
         </button>
     </div>
-    <div style="height: 80px;"></div>
+    
+    <div style="height: 100px;"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     <script>
@@ -153,10 +156,9 @@
         };
         let buyQty = 1;
 
-        // ★★★ Swiper 設定更新 ★★★
+        // 輪播圖設定 (因為只剩一張，關閉 loop 避免出錯)
         var swiper = new Swiper(".mySwiper", {
-            loop: false,            // 關閉 loop 模式 (開啟 autoHeight 時 loop 容易導致高度計算閃爍)
-            autoHeight: true,       // 關鍵開啟！這會讓輪播圖自動適應目前圖片的真實高度
+            loop: false, 
             pagination: { el: ".swiper-pagination", clickable: true },
             speed: 400,
             grabCursor: true
