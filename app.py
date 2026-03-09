@@ -1962,7 +1962,7 @@ def faq():
 def privacy():
     return render_template('privacy.html')
 
-# 商品列表 (修改版：支援分類篩選)
+# 商品列表 (修改版：支援分類篩選，並依 ID 排序)
 @app.route('/admin/products')
 @login_required
 def admin_products():
@@ -1972,11 +1972,13 @@ def admin_products():
     # 1. 接收網址傳來的分類參數 (例如 ?category=shampoo)
     cat_filter = request.args.get('category')
     
-    # 2. 判斷要抓全部還是抓特定分類
+    # 2. 判斷要抓全部還是抓特定分類，並加上 order_by(Product.id) 進行排序
     if cat_filter:
-        products = Product.query.filter_by(category=cat_filter).all()
+        # 有選擇分類時：過濾分類後，依 ID 排序
+        products = Product.query.filter_by(category=cat_filter).order_by(Product.id).all()
     else:
-        products = Product.query.all()
+        # 顯示全部商品時：直接依 ID 排序
+        products = Product.query.order_by(Product.id).all()
         
     # 3. 回傳模板 (多傳一個 current_category 給前端做按鈕亮燈判斷)
     return render_template('admin/products.html', products=products, current_category=cat_filter)
