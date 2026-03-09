@@ -515,7 +515,8 @@ def promotions():
 
 @app.route('/shampoo')
 def shampoo_page():
-    products = Product.query.filter_by(category='shampoo').all()
+    # 加上 .order_by(Product.id) 讓前台依照編號排序
+    products = Product.query.filter_by(category='shampoo').order_by(Product.id).all()
     page_info = {'title_zh': '洗髮精', 'title_en': 'SHAMPOO'}
     return render_template('shampoo.html', products=products, page_info=page_info)
 
@@ -542,7 +543,8 @@ def category_page(cat_name):
         'otherproduct': {'title_zh': '其他產品', 'title_en': 'OTHERS'}
     }
     page_info = category_data.get(cat_name, {'title_zh': '精選商品', 'title_en': 'PRODUCTS'})
-    products = Product.query.filter_by(category=cat_name).all()
+    # 加上 .order_by(Product.id) 讓前台依照編號排序
+    products = Product.query.filter_by(category=cat_name).order_by(Product.id).all()
     return render_template('shampoo.html', products=products, page_info=page_info)
 
 # ★★★ 修改這裡：改成讀取資料庫，並使用通用模版 ★★★
