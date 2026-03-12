@@ -195,7 +195,7 @@
                         <input type="text" id="inputName" name="name" class="form-input" 
                                placeholder="請輸入真實姓名" required
                                value="{{ current_user.name if current_user.is_authenticated else '' }}">
-                        <div class="checkout-error-msg" id="err-inputName">請填寫有效姓名 (勿使用特殊符號)</div>
+                        <div class="checkout-error-msg" id="err-inputName">請填寫有效姓名 (請填寫真實姓名以便取貨)</div>
                     </div>
 
                     <div class="form-group">
@@ -261,8 +261,8 @@
                     <div class="form-group">
                         <label class="form-label">付款方式</label>
                         <select name="payment_method" class="form-input">
-                            <option value="linepay">LINE Pay</option>
-                            <option value="cod" selected>貨到付款 (現金)</option>
+                            <option value="linepay"selected>LINE Pay</option>
+                            <option value="cod" >貨到付款 (現金)</option>
                             <option value="atm">銀行轉帳 / 網銀 (人工對帳)</option>
                             <option value="jiekou">街口支付 (人工對帳)</option>
                         </select>
