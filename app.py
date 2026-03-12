@@ -14,6 +14,10 @@ import json
 import datetime
 import random
 import string# ★★★ 新增：隨機數模組
+import hmac
+import hashlib
+import base64
+import uuid
 
 app = Flask(__name__)
 
@@ -108,6 +112,29 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login' # 若沒登入，導向的頁面
 
+# ==========================================
+# ★ LINE Pay 金流設定 & 加密工具 ★
+# ==========================================
+if os.environ.get('DATABASE_URL'):
+    # Render 正式環境
+    LINE_PAY_ID = os.environ.get('LINE_PAY_ID')
+    LINE_PAY_SECRET = os.environ.get('LINE_PAY_SECRET')
+    LINE_PAY_API_URL = "https://api-pay.line.me"
+    SERVER_URL = "https://pdk-office.onrender.com"
+else:
+    # 本地測試環境 (Ngrok)
+    LINE_PAY_ID = "2009436575" 
+    LINE_PAY_SECRET = "b36da8e2174c8787cf43756332d4fedb"
+    LINE_PAY_API_URL = "https://sandbox-api-pay.line.me"
+    SERVER_URL = "https://unilingual-nonviviparously-camron.ngrok-free.dev"
+
+# 產生 LINE Pay V3 專用簽名 (HMAC-SHA256)
+def generate_line_pay_signature(uri, request_body, nonce):
+    secret = LINE_PAY_SECRET
+    message = secret + uri + request_body + nonce
+    signature = base64.b64encode(hmac.new(secret.encode('utf-8'), message.encode('utf-8'), hashlib.sha256).digest()).decode('utf-8')
+    return signature
+
 # ==============================================================================
 # 2. 資料庫模型 (Models) - 核心地基
 # ==============================================================================
@@ -183,6 +210,9 @@ class Order(db.Model):
     shipping_method = db.Column(db.String(20))
     address = db.Column(db.String(200))
     payment_method = db.Column(db.String(20))
+    
+    # ★★★ LINE Pay 專屬交易序號
+    linepay_transaction_id = db.Column(db.String(50), nullable=True)
     
     total_amount = db.Column(db.Integer)
     discount_amount = db.Column(db.Integer, default=0)
@@ -1026,16 +1056,75 @@ def submit_order():
         except:
             pass
         
+        # ==========================================
+        # ★ 9. 判斷付款方式：如果是 LINE Pay，跳轉去付款
+        # ==========================================
+        if payment_method == 'linepay':
+            uri = "/v3/payments/request"
+            nonce = str(uuid.uuid4())
+            # 準備給 LINE Pay 的訂單資料
+            payload = {
+                "amount": result['final_total'],
+                "currency": "TWD",
+                "orderId": order_no,
+                "packages": [{
+                    "id": "pack_1",
+                    "amount": result['final_total'],
+                    "name": "P.D.K 官網訂單",
+                    "products": [{
+                        "id": "prod_1",
+                        "name": "P.D.K 購物車商品",
+                        "quantity": 1,
+                        "price": result['final_total']
+                    }]
+                }],
+                "redirectUrls": {
+                    "confirmUrl": f"{SERVER_URL}/linepay/confirm", # 付款成功後回傳這裡
+                    "cancelUrl": f"{SERVER_URL}/checkout"          # 取消付款回結帳頁
+                },
+                # ==========================================
+                # ★★★ 新增：結帳時預設加入官方帳號好友 ★★★
+                # ==========================================
+                "options": {
+                    "addFriends": [
+                        {
+                            "type": "lineAt",
+                            "idList": ["@213nuoyq"]  # ★ 請在這裡填入 P.D.K 的 LINE 官方帳號 ID (記得要有 @)
+                        }
+                    ]
+                }
+            }
+            
+            payload_str = json.dumps(payload)
+            signature = generate_line_pay_signature(uri, payload_str, nonce)
+            
+            headers = {
+                "Content-Type": "application/json",
+                "X-LINE-ChannelId": LINE_PAY_ID,
+                "X-LINE-Authorization-Nonce": nonce,
+                "X-LINE-Authorization": signature
+            }
+            
+            # 發送請求給 LINE Pay
+            res = requests.post(LINE_PAY_API_URL + uri, headers=headers, data=payload_str)
+            res_data = res.json()
+            
+            if res_data.get('returnCode') == '0000':
+                # 成功拿到專屬付款網址，把客人導向該網址
+                payment_url = res_data['info']['paymentUrl']['web']
+                return redirect(payment_url)
+            else:
+                flash(f"LINE Pay 請求失敗: {res_data.get('returnMessage')}", 'error')
+                return redirect(url_for('checkout_page'))
+
+        # ==========================================
+        # ★ 10. 如果不是 LINE Pay (貨到付款/轉帳)，直接完成並寄信
+        # ==========================================
         try:
-
             print("正在嘗試寄送訂單確認信...")
-
             send_order_confirmation_email(new_order)
-
             send_merchant_new_order_email(new_order)
-
         except Exception as e:
-
             print(f"寄信失敗，但訂單已建立。錯誤原因: {e}")
         
         return render_template('order_success.html', 
@@ -1049,6 +1138,77 @@ def submit_order():
         print(f"Submit Order Error: {e}")
         db.session.rollback()
         return f"訂單建立失敗: {str(e)}", 500
+
+
+# ==============================================================================
+# ★★★ LINE Pay 授權與確認路由 ★★★
+# ==============================================================================
+@app.route('/linepay/confirm')
+def linepay_confirm():
+    # 1. LINE Pay 會把交易序號跟訂單編號放在網址後面傳回來
+    transaction_id = request.args.get('transactionId')
+    order_no = request.args.get('orderId')
+
+    if not transaction_id or not order_no:
+        flash('找不到交易序號，付款失敗', 'error')
+        return redirect(url_for('home'))
+
+    # 2. 去資料庫找這筆訂單
+    order = Order.query.filter_by(order_no=order_no).first()
+    if not order:
+        flash('找不到此訂單', 'error')
+        return redirect(url_for('home'))
+
+    # 3. 執行 Confirm API (告訴 LINE Pay：我確實要收這筆錢了)
+    uri = f"/v3/payments/{transaction_id}/confirm"
+    nonce = str(uuid.uuid4())
+    payload = {
+        "amount": order.final_total,
+        "currency": "TWD"
+    }
+    payload_str = json.dumps(payload)
+    signature = generate_line_pay_signature(uri, payload_str, nonce)
+    
+    headers = {
+        "Content-Type": "application/json",
+        "X-LINE-ChannelId": LINE_PAY_ID,
+        "X-LINE-Authorization-Nonce": nonce,
+        "X-LINE-Authorization": signature
+    }
+
+    try:
+        res = requests.post(LINE_PAY_API_URL + uri, headers=headers, data=payload_str)
+        res_data = res.json()
+
+        if res_data.get('returnCode') == '0000':
+            # ★★★ 付款成功！更新資料庫 ★★★
+            order.status = 'paid'  # 狀態改為已付款
+            order.paid_at = datetime.datetime.now()
+            order.linepay_transaction_id = transaction_id # 存入專屬交易碼
+            db.session.commit()
+
+            # 付款成功後，才寄送確認信給客人跟商家
+            try:
+                send_order_confirmation_email(order)
+                send_merchant_new_order_email(order)
+            except Exception as e:
+                print(f"寄信失敗: {e}")
+
+            # 導向你美美的成功頁面
+            return render_template('order_success.html',
+                                   order_id=order.order_no,
+                                   name=order.customer_name,
+                                   final_total=order.final_total,
+                                   payment_method='linepay',
+                                   order=order)
+        else:
+            flash(f"付款失敗: {res_data.get('returnMessage')}", 'error')
+            return redirect(url_for('checkout_page'))
+
+    except Exception as e:
+        print(f"LINE Pay Confirm Error: {e}")
+        flash('付款確認發生錯誤，請聯絡官方 LINE 客服', 'error')
+        return redirect(url_for('home'))
 
 @app.route('/api/check_referral', methods=['POST'])
 @login_required

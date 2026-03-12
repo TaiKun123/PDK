@@ -98,9 +98,18 @@
                     {% endif %}
                 </span>
             </div>
-
+            
             <div class="payment-instruction-box">
-                {% if payment_method == 'cod' %}
+                {% if payment_method == 'linepay' %}
+                    <div class="instruction-title" style="color: #00B900;">LINE Pay 付款成功</div>
+                    <div class="bank-item-box" style="border-bottom: none; text-align: center; padding-top: 15px;">
+                        <p style="margin-bottom:15px; font-size: 1.1rem; color: #fff;">感謝您的訂購！</p>
+                        <p style="line-height: 1.6; color: #aaa;">
+                            商品將於 <span class="cod-highlight">1-3 個工作天內</span> 出貨。<br>
+                            出貨後會再以 Email 通知，謝謝～
+                        </p>
+                    </div>
+                {% elif payment_method == 'cod' %}
                     <div class="instruction-title">貨到付款須知</div>
                     <p style="margin-bottom:15px; color:#aaa;">您的訂單已進入排程，我們將於 1-3 個工作天內為您安排出貨。</p>
                     
