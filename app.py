@@ -1062,6 +1062,46 @@ def submit_order():
         if payment_method == 'linepay':
             uri = "/v3/payments/request"
             nonce = str(uuid.uuid4())
+            
+            # --- 🚀 升級版：動態抓取購物車「所有」商品名稱與數量 ---
+            display_name = "P.D.K 官網訂單"
+            img_url = ""
+            
+            if cart_items:
+                # 1. 把所有商品名稱和數量串起來 (例如: 洗髮精 x1 + 潤髮乳 x2)
+                item_details = []
+                for item in cart_items:
+                    item_name = item.get('name', 'P.D.K 商品')
+                    qty = item.get('quantity') or item.get('count') or item.get('qty') or 1
+                    item_details.append(f"{item_name} x{qty}")
+                
+                # 用 " + " 把文字連起來
+                display_name = " + ".join(item_details)
+                
+                # 如果字數太長 (超過 100 字)，LINE Pay 會報錯，所以我們做個截斷保護
+                if len(display_name) > 100:
+                    display_name = display_name[:95] + " 等商品"
+                
+                # 2. 抓取第一張圖片當作代表圖
+                raw_img = cart_items[0].get('image', '')
+                if raw_img:
+                    if raw_img.startswith('http'):
+                        img_url = raw_img
+                    elif raw_img.startswith('/'):
+                        img_url = f"{SERVER_URL}{raw_img}"
+                    else:
+                        img_url = f"{SERVER_URL}/{raw_img}"
+
+            # 建立 LINE Pay 產品明細字典 (打包成一個安全的商品)
+            line_product = {
+                "id": "prod_1",
+                "name": display_name,  # ★ 畫面會顯示：洗髮精 x1 + 潤髮乳 x2
+                "quantity": 1,         # 數量固定寫 1 (整筆訂單打包算一個金額)
+                "price": result['final_total']
+            }
+            if img_url:
+                line_product["imageUrl"] = img_url
+
             # 準備給 LINE Pay 的訂單資料
             payload = {
                 "amount": result['final_total'],
@@ -1071,12 +1111,7 @@ def submit_order():
                     "id": "pack_1",
                     "amount": result['final_total'],
                     "name": "P.D.K 官網訂單",
-                    "products": [{
-                        "id": "prod_1",
-                        "name": "P.D.K 購物車商品",
-                        "quantity": 1,
-                        "price": result['final_total']
-                    }]
+                    "products": [line_product]
                 }],
                 "redirectUrls": {
                     "confirmUrl": f"{SERVER_URL}/linepay/confirm", # 付款成功後回傳這裡
@@ -1089,13 +1124,14 @@ def submit_order():
                     "addFriends": [
                         {
                             "type": "lineAt",
-                            "idList": ["@213nuoyq"]  # ★ 請在這裡填入 P.D.K 的 LINE 官方帳號 ID (記得要有 @)
+                            "idList": ["@213nuoyq"]  # ★ 你的 P.D.K 官方帳號 ID
                         }
                     ]
                 }
             }
             
             payload_str = json.dumps(payload)
+            
             signature = generate_line_pay_signature(uri, payload_str, nonce)
             
             headers = {
