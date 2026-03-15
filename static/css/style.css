@@ -1897,3 +1897,65 @@ body.no-scroll {
     color: #888; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;
 }
 .lock-icon { font-size: 0.9rem; }
+
+/* =========================================
+   P.D.K 圓形第三方登入按鈕樣式
+   ========================================= */
+.social-login-divider {
+    text-align: center; 
+    margin: 30px 0; 
+    position: relative;
+}
+.social-login-divider hr {
+    border: none; 
+    border-top: 1px solid #333; /* 深色分隔線 */
+    margin: 0;
+}
+.social-login-divider span {
+    background: #1a1a1a; /* 需配合你的 auth-card 背景色 */
+    padding: 0 15px; 
+    color: #888; 
+    font-size: 0.85rem; 
+    position: absolute; 
+    top: -10px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    letter-spacing: 1px;
+}
+
+.social-login-icons-container {
+    display: flex; 
+    justify-content: center; /* 居中 */
+    gap: 25px; /* 圓圈之間的間距 */
+    margin-top: 20px;
+}
+
+.social-icon-btn {
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    width: 55px; /* 圓圈大小 */
+    height: 55px; 
+    border-radius: 50%; /* 變成圓形 */
+    text-decoration: none; 
+    transition: all 0.2s ease-in-out; /* 漂亮的過場動畫 */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3); /* 輕微陰影 */
+    box-sizing: border-box;
+}
+
+/* ★ 滑鼠懸停效果：放大並加上光暈 ★ */
+.social-icon-btn:hover {
+    transform: scale(1.1) translateY(-3px); /* 放大並往上飄一點點 */
+    box-shadow: 0 5px 15px rgba(255,255,255,0.1); /* 淡淡的白色光暈 */
+}
+
+/* Google 專屬：白底 */
+.btn-google-icon {
+    background-color: #fff;
+    border: 1px solid #eee;
+}
+
+/* LINE 專屬：綠底 (預留給下一階段用) */
+.btn-line-icon {
+    background-color: #00b900;
+}

@@ -101,7 +101,7 @@
         }
         .btn-confirm-modal:hover { background: #e0e0e0; }
         .voucher-item.special-item {
-            flex-direction: row; /* 確保左右排列 */
+            flex-direction: row; 
             align-items: center;
         }
 
@@ -110,11 +110,11 @@
             display: flex; 
             align-items: center; 
             justify-content: center; 
-            gap: 12px; /* 按鈕間距 */
+            gap: 12px; 
             z-index: 2; 
-            background: #252525; /* 增加深色背景 */
+            background: #252525; 
             padding: 5px 12px;
-            border-radius: 30px; /* 圓角膠囊狀 */
+            border-radius: 30px; 
             border: 1px solid #444;
             min-width: 100px;
         }
@@ -128,7 +128,7 @@
             background: #333; 
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; user-select: none; transition: 0.2s;
-            font-size: 1.2rem; /* 符號大一點 */
+            font-size: 1.2rem; 
             line-height: 1;
             padding-bottom: 2px;
         }
@@ -185,7 +185,7 @@
                         <label class="form-label">電子信箱 Email</label>
                         <input type="email" id="inputEmail" name="email" class="form-input" 
                                placeholder="請輸入 Email 以接收訂單通知" required
-                               value="{{ current_user.email if current_user.is_authenticated else '' }}">
+                               value="{% if current_user.is_authenticated and current_user.email %}{{ current_user.email }}{% endif %}">
                         <div class="checkout-error-msg" id="err-inputEmail">Email 格式不正確</div>
                         <div id="emailSuggestion" class="suggestion-msg"></div>
                     </div>
@@ -194,7 +194,7 @@
                         <label class="form-label">收件人姓名</label>
                         <input type="text" id="inputName" name="name" class="form-input" 
                                placeholder="請輸入真實姓名" required
-                               value="{{ current_user.name if current_user.is_authenticated else '' }}">
+                               value="{% if current_user.is_authenticated and current_user.real_name and current_user.real_name != 'None' %}{{ current_user.real_name }}{% endif %}">
                         <div class="checkout-error-msg" id="err-inputName">請填寫有效姓名 (請填寫真實姓名以便取貨)</div>
                     </div>
 
@@ -202,7 +202,7 @@
                         <label class="form-label">手機號碼</label>
                         <input type="tel" id="inputPhone" name="phone" class="form-input" 
                                placeholder="09xxxxxxxx" maxlength="10" required
-                               value="{{ current_user.phone if current_user.is_authenticated else '' }}">
+                               value="{% if current_user.is_authenticated and current_user.phone and current_user.phone != 'None' %}{{ current_user.phone }}{% endif %}">
                         <div class="checkout-error-msg" id="err-inputPhone">請輸入正確的台灣手機號碼 (10碼)</div>
                     </div>
                 </div>
@@ -237,7 +237,7 @@
                             <label class="form-label">詳細地址</label>
                             <input type="text" name="address" id="addressInput" class="form-input" 
                                    placeholder="街道、巷弄、門號、樓層"
-                                   value="{{ current_user.address if current_user.is_authenticated and current_user.address else '' }}">
+                                   value="{% if current_user.is_authenticated and current_user.address and current_user.address != 'None' %}{{ current_user.address }}{% endif %}">
                             <div class="checkout-error-msg" id="err-addressInput">地址太短了，請填寫完整資訊</div>
                         </div>
                     </div>
@@ -247,7 +247,7 @@
                             <label class="form-label">取貨門市名稱 / 店號</label>
                             <input type="text" name="store_name" id="storeNameInput" class="form-input" 
                                    placeholder="例如：711 台北旗艦店 (123456)"
-                                   value="{{ current_user.store_info if current_user.is_authenticated and current_user.store_info else '' }}">
+                                   value="{% if current_user.is_authenticated and current_user.store_info and current_user.store_info != 'None' %}{{ current_user.store_info }}{% endif %}">
                             <div class="checkout-error-msg" id="err-storeNameInput">請填寫取貨門市</div>
                             <div style="font-size:0.8rem; color:#888; margin-top:5px;">
                                 * 請填寫您方便取貨的 711 門市名稱或店號
@@ -376,6 +376,37 @@
                     </div>
                 </div>
 
+                <div id="updateProfileBox" style="display: none; border: 1px solid #444; padding: 12px 15px; border-radius: 4px; margin-bottom: 25px; cursor: pointer; user-select: none;" onclick="toggleCustomCheck()">
+                    <div style="display: flex; align-items: center;">
+                        <div id="fakeCheckbox" style="width: 16px; height: 16px; border: 1px solid #888; border-radius: 3px; margin-right: 10px; display: flex; align-items: center; justify-content: center; transition: 0.2s;">
+                            <span id="fakeCheckmark" style="color: #111; font-weight: bold; font-size: 12px; display: none;">✓</span>
+                        </div>
+                        <span style="color: #aaa; font-size: 0.85rem; letter-spacing: 0.5px;">將此次變更的資訊設為預設收件資料</span>
+                    </div>
+                    <input type="hidden" name="update_profile" id="realUpdateInput" value="no">
+                </div>
+
+                <script>
+                // 負責切換假方塊的專屬小腳本
+                function toggleCustomCheck() {
+                    const realInput = document.getElementById('realUpdateInput');
+                    const box = document.getElementById('fakeCheckbox');
+                    const mark = document.getElementById('fakeCheckmark');
+                    
+                    if (realInput.value === 'no') {
+                        realInput.value = 'yes';
+                        box.style.backgroundColor = '#4caf50';
+                        box.style.borderColor = '#4caf50';
+                        mark.style.display = 'block';
+                    } else {
+                        realInput.value = 'no';
+                        box.style.backgroundColor = 'transparent';
+                        box.style.borderColor = '#888';
+                        mark.style.display = 'none';
+                    }
+                }
+                </script>
+
                 <div class="checkout-actions">
                     <button type="button" class="btn-back-checkout" onclick="window.location.href='/'">
                         < 返回
@@ -425,7 +456,7 @@
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // --- 既有的表單驗證邏輯 (保持不變) ---
+        // --- 既有的表單驗證邏輯 ---
         const inputs = {
             inputEmail: document.getElementById('inputEmail'),
             inputName: document.getElementById('inputName'),
@@ -460,57 +491,189 @@
             }
         }
 
-        Object.keys(inputs).forEach(key => {
-            if(inputs[key]) {
-                inputs[key].addEventListener('blur', function() {
-                    if (this.value.trim() !== "") {
-                        const mode = document.getElementById('shippingSelect').value;
-                        if (key === 'addressInput' && mode === 'store') return;
-                        if (key === 'storeNameInput' && mode === 'home') return;
-
-                        if (!validators[key](this.value)) {
-                            showError(key);
-                        } else {
-                            clearError(key);
-                        }
-                    }
-                });
-                inputs[key].addEventListener('input', function() {
-                    clearError(key);
-                });
-            }
-        });
-
-        // --- 送出按鈕 ---
         const submitBtn = document.getElementById('btnSubmitOrder');
         const form = document.getElementById('checkoutForm');
         const shippingSelect = document.getElementById('shippingSelect');
         const homeGroup = document.getElementById('homeDeliveryGroup');
         const storeGroup = document.getElementById('storePickupGroup');
 
-        // ★★★ 核心邏輯：自動計算會員優惠與免運 ★★★
-        // 這個函式會每秒檢查一次金額，確保畫面顯示正確
+        // ==========================================
+        // ★ 魔法 1：Email 撞號即時偵測 (AJAX)
+        // ==========================================
+        if (inputs.inputEmail) {
+            inputs.inputEmail.addEventListener('blur', async function() {
+                const emailVal = this.value.trim();
+                const emailErr = document.getElementById('err-inputEmail');
+                
+                if (!validators.inputEmail(emailVal)) {
+                    showError('inputEmail');
+                    emailErr.innerText = "Email 格式不正確";
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/check_email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: emailVal })
+                    });
+                    const data = await response.json();
+                    
+                    if (data.exists) {
+                        emailErr.innerText = "此信箱已被註冊，請更換信箱或登入會員";
+                        emailErr.classList.add('show');
+                        this.classList.add('error');
+                        if (submitBtn) {
+                            submitBtn.disabled = true;
+                            submitBtn.style.opacity = '0.5';
+                            submitBtn.style.cursor = 'not-allowed';
+                        }
+                    } else {
+                        clearError('inputEmail');
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.style.opacity = '1';
+                            submitBtn.style.cursor = 'pointer';
+                        }
+                    }
+                } catch(err) {
+                    console.error('Email 檢查失敗:', err);
+                }
+            });
+            inputs.inputEmail.addEventListener('input', () => clearError('inputEmail'));
+        }
+        // ==========================================
+        // ★ 魔法 1.5：Phone 撞號即時偵測 (AJAX)
+        // ==========================================
+        if (inputs.inputPhone) {
+            inputs.inputPhone.addEventListener('blur', async function() {
+                const phoneVal = this.value.trim();
+                const phoneErr = document.getElementById('err-inputPhone');
+                
+                // 先檢查是不是正確的 10 碼數字
+                if (!validators.inputPhone(phoneVal)) {
+                    showError('inputPhone');
+                    phoneErr.innerText = "請輸入正確的台灣手機號碼 (10碼)";
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/check_phone', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ phone: phoneVal })
+                    });
+                    const data = await response.json();
+                    
+                    if (data.exists) {
+                        // 撞號了！亮紅字並鎖定結帳按鈕
+                        phoneErr.innerText = "此電話已被其他會員使用，請更換";
+                        phoneErr.classList.add('show');
+                        this.classList.add('error');
+                        if (submitBtn) {
+                            submitBtn.disabled = true;
+                            submitBtn.style.opacity = '0.5';
+                            submitBtn.style.cursor = 'not-allowed';
+                        }
+                    } else {
+                        // 沒撞號，恢復預設文字並解鎖
+                        clearError('inputPhone');
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.style.opacity = '1';
+                            submitBtn.style.cursor = 'pointer';
+                        }
+                    }
+                } catch(err) {
+                    console.error('Phone 檢查失敗:', err);
+                }
+            });
+            inputs.inputPhone.addEventListener('input', () => clearError('inputPhone'));
+        }
+        // ==========================================
+        // ★ 魔法 2：智慧資料更新勾勾
+        // ==========================================
+        const updateBox = document.getElementById('updateProfileBox');
+        
+        const origPhone = "{% if current_user.is_authenticated and current_user.phone and current_user.phone != 'None' %}{{ current_user.phone }}{% endif %}".trim();
+        const origAddress = "{% if current_user.is_authenticated and current_user.address and current_user.address != 'None' %}{{ current_user.address }}{% endif %}".trim();
+        const origStore = "{% if current_user.is_authenticated and current_user.store_info and current_user.store_info != 'None' %}{{ current_user.store_info }}{% endif %}".trim();
+
+        let isPageLoading = true;
+        setTimeout(() => { 
+            isPageLoading = false; 
+            checkDataChanges(); 
+        }, 800);
+
+        function checkDataChanges() {
+            if (isPageLoading) return;
+            if (!updateBox) return;
+            
+            const mode = shippingSelect.value;
+            const curPhone = inputs.inputPhone ? inputs.inputPhone.value.trim() : '';
+            let isChanged = false;
+
+            if (origPhone !== '' && curPhone !== '' && curPhone !== origPhone) {
+                isChanged = true;
+            }
+
+            if (mode === 'home') {
+                const curCity = document.getElementById('citySelect') ? document.getElementById('citySelect').value || '' : '';
+                const curDist = document.getElementById('districtSelect') ? document.getElementById('districtSelect').value || '' : '';
+                const curDetail = inputs.addressInput ? inputs.addressInput.value.trim() : '';
+                const curFullAddress = curCity + curDist + curDetail;
+                
+                if (origAddress !== '' && curFullAddress.length > 5 && curFullAddress !== origAddress) {
+                    isChanged = true;
+                }
+            } else {
+                const curStore = inputs.storeNameInput ? inputs.storeNameInput.value.trim() : '';
+                if (origStore !== '' && curStore !== '' && curStore !== origStore) {
+                    isChanged = true;
+                }
+            }
+
+            if (isChanged) {
+                updateBox.style.display = 'block';
+            } else {
+                updateBox.style.display = 'none';
+                if(document.getElementById('realUpdateInput')) {
+                    document.getElementById('realUpdateInput').value = 'no';
+                    document.getElementById('fakeCheckbox').style.backgroundColor = 'transparent';
+                    document.getElementById('fakeCheckbox').style.borderColor = '#888';
+                    document.getElementById('fakeCheckmark').style.display = 'none';
+                }
+            }
+        }
+
+        ['inputName', 'inputPhone', 'addressInput', 'storeNameInput'].forEach(key => {
+            if(inputs[key]) {
+                inputs[key].addEventListener('blur', function() { checkDataChanges(); });
+                inputs[key].addEventListener('input', function() { checkDataChanges(); });
+            }
+        });
+
+        ['citySelect', 'districtSelect', 'shippingSelect'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.addEventListener('change', checkDataChanges);
+        });
+
+        // --- 核心邏輯：自動計算金額 ---
         function updateMemberBenefits() {
-            // 1. 抓取目前畫面上的金額
             const subtotalElem = document.getElementById('summarySubtotal');
             const discountElem = document.getElementById('summaryDiscount');
             const shippingElem = document.getElementById('summaryShipping');
             
             if (!subtotalElem) return; 
 
-            // ★★★ 步驟 A: 先把逗號 (,) 去掉 ★★★
-            // [^\d] 代表「非數字」，把它們全部換成空字串
             let rawSubtotal = subtotalElem.innerText.replace(/[^\d]/g, '');
             let rawDiscount = discountElem.innerText.replace(/[^\d]/g, '');
 
-            // ★★★ 步驟 B: 這裡要 parseInt 剛剛處理好的 rawSubtotal (不要放原本的 element) ★★★
             let subtotal = parseInt(rawSubtotal || 0);
             let cashDiscount = parseInt(rawDiscount || 0);
-            // 2. 抓取會員資料
-            const tier = document.getElementById('userTier').value; // Pure, Deep, Keep
+            const tier = document.getElementById('userTier').value; 
             const quota = parseInt(document.getElementById('shippingQuota').value || 0);
 
-            // 3. 計算會員折扣 (扣除現金優惠後再打折)
             let taxableAmount = subtotal - cashDiscount;
             if (taxableAmount < 0) taxableAmount = 0;
 
@@ -518,34 +681,28 @@
             let tierName = "";
 
             if (tier === 'Keep') {
-                memberDiscount = Math.floor(taxableAmount * 0.10); // 9折 = 減10%
+                memberDiscount = Math.floor(taxableAmount * 0.10); 
                 tierName = "Keep 9折";
             } else if (tier === 'Deep') {
-                memberDiscount = Math.floor(taxableAmount * 0.05); // 95折 = 減5%
+                memberDiscount = Math.floor(taxableAmount * 0.05); 
                 tierName = "Deep 95折";
             }
 
-            // 4. 計算運費 (處理免運邏輯)
-            let currentShipping = 100; // 預設宅配
-            if (shippingSelect.value === 'store') currentShipping = 40; // 預設超商
+            let currentShipping = 100; 
+            if (shippingSelect.value === 'store') currentShipping = 40; 
 
             let finalShipping = currentShipping;
 
-            // 滿額免運 (全體適用)
             if (subtotal >= 2000) {
                 finalShipping = 0;
             } else {
-                // 會員免運
                 if (tier === 'Deep' && shippingSelect.value === 'store') {
-                    finalShipping = 0; // Deep 超商免運
+                    finalShipping = 0; 
                 } else if (tier === 'Keep' && quota > 0) {
-                    finalShipping = 0; // Keep 免運 (不限)
+                    finalShipping = 0; 
                 }
             }
 
-            // 5. 更新畫面顯示
-            
-            // A. 會員優惠列
             const memberRow = document.getElementById('memberDiscountRow');
             if (memberDiscount > 0) {
                 memberRow.style.display = 'flex';
@@ -555,24 +712,20 @@
                 memberRow.style.display = 'none';
             }
 
-            // B. 運費欄位 (如果有免運，可以加註)
             shippingElem.innerText = finalShipping;
             if (finalShipping === 0 && subtotal < 2000) {
-                // 如果是會員福利免運，加個綠色標示
                 shippingElem.style.color = "#4caf50"; 
                 shippingElem.innerText = "0 (會員免運)";
             } else {
                 shippingElem.style.color = "#fff";
             }
 
-            // C. 最終總金額
             let finalTotal = subtotal - cashDiscount - memberDiscount + finalShipping;
-            if (finalTotal < 1) finalTotal = 1; // 至少付1元
+            if (finalTotal < 1) finalTotal = 1; 
             
             document.getElementById('summaryTotal').innerText = finalTotal;
         }
 
-        // 綁定事件：當物流方式改變時，重算一次
         if (shippingSelect) {
             shippingSelect.addEventListener('change', function() {
                 if (this.value === 'home') {
@@ -582,38 +735,33 @@
                     homeGroup.style.display = 'none';
                     storeGroup.style.display = 'block';
                 }
-                // 延遲一點點執行，等待 checkout.js 可能的動作
                 setTimeout(updateMemberBenefits, 100);
             });
-            // 初始化執行
             const event = new Event('change');
             shippingSelect.dispatchEvent(event);
         }
 
-        // 使用定時器檢查金額變化 (因為 checkout.js 也是非同步更新)
         setInterval(updateMemberBenefits, 500);
 
-
-        // --- 原本的送出檢查 ---
         if(submitBtn) {
             submitBtn.addEventListener('click', function(e) {
                 let isValid = true;
                 const mode = shippingSelect.value;
 
                 ['inputEmail', 'inputName', 'inputPhone'].forEach(key => {
-                    if(!validators[key](inputs[key].value)) {
+                    if(inputs[key] && !validators[key](inputs[key].value)) {
                         showError(key);
                         isValid = false;
                     }
                 });
 
                 if (mode === 'home') {
-                    if (!validators.addressInput(inputs.addressInput.value)) {
+                    if (inputs.addressInput && !validators.addressInput(inputs.addressInput.value)) {
                         showError('addressInput');
                         isValid = false;
                     }
                 } else {
-                    if (!validators.storeNameInput(inputs.storeNameInput.value)) {
+                    if (inputs.storeNameInput && !validators.storeNameInput(inputs.storeNameInput.value)) {
                         showError('storeNameInput');
                         isValid = false;
                     }
@@ -632,9 +780,8 @@
             });
         }
 
-        // 地址自動拆解
         setTimeout(() => {
-            const fullAddress = "{{ current_user.address if current_user.is_authenticated and current_user.address else '' }}";
+            const fullAddress = "{% if current_user.is_authenticated and current_user.address and current_user.address != 'None' %}{{ current_user.address }}{% endif %}";
             if (fullAddress && fullAddress.length > 5) {
                 const regex = /^(.{2,3}[縣市])(.{2,4}[區鄉鎮市])(.+)$/;
                 const match = fullAddress.match(regex);
@@ -670,6 +817,7 @@
                 }
             }
         }, 500);
+
     });
     </script>
 

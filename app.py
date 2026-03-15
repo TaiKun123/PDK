@@ -8,6 +8,7 @@ from sqlalchemy import extract
 from flask_mail import Mail, Message
 from datetime import datetime, timedelta # 確保引入這兩個# ★★★ 新增：寄信模組
 from threading import Thread # ★★★ 新增這行
+from authlib.integrations.flask_client import OAuth
 import os
 import requests # 用來發送 API 請求
 import json
@@ -20,7 +21,7 @@ import base64
 import uuid
 
 app = Flask(__name__)
-
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 # ==============================================================================
 # 1. 設定 (Configuration) - 智慧切換資料庫
 # ==============================================================================
@@ -52,7 +53,20 @@ UPLOAD_FOLDER = os.path.join('static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # 允許上傳的圖片格式
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+# ==========================================
+# ★ 第三方登入設定 (OAuth)
+# ==========================================
+oauth = OAuth(app)
 
+google = oauth.register(
+    name='google',
+    client_id=os.environ.get('GOOGLE_CLIENT_ID'),        
+    client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={
+        'scope': 'openid email profile'
+    }
+)
 # --- ★★★ Brevo 高速寄信函式 ★★★ ---
 def send_via_brevo(to_email, subject, html_content):
     url = "https://api.brevo.com/v3/smtp/email"
@@ -145,6 +159,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
     name = db.Column(db.String(100))
+    real_name = db.Column(db.String(100))
     phone = db.Column(db.String(20))
     address = db.Column(db.String(200))
     store_info = db.Column(db.String(100))
@@ -966,7 +981,7 @@ def submit_order():
             address = f"{city}{district}{addr_detail}"
         elif shipping_method == 'store':
             store_name = request.form.get('store_name') or "未指定"
-            address = f"7-11 門市：{store_name}"
+            address = store_name
 
         # 準備物件
         valid_promo_obj = None
@@ -1006,7 +1021,33 @@ def submit_order():
 
         # ★★★ 修正點：統一使用 result 回傳的推薦人 (避免邏輯不一致) ★★★
         valid_referrer = result.get('referrer_obj')
+        
+        store_name = request.form.get('store_name') # 確保有抓到超商門市
+        update_profile = request.form.get('update_profile') # 抓取是否打勾
 
+        # ==========================================
+        # ★★★ 智慧回填與更新會員資料 ★★★
+        # ==========================================
+        if current_user.is_authenticated:
+            # 1. 靜默更新 (情境 A)：如果資料庫原本是空的，直接幫他填入
+            if not current_user.real_name:
+                current_user.real_name = name
+            if not current_user.phone:
+                current_user.phone = phone
+            
+            if shipping_method == 'home' and not current_user.address:
+                current_user.address = address
+            elif shipping_method == 'store' and not current_user.store_info:
+                current_user.store_info = store_name
+
+            # 2. 勾勾更新 (情境 C)：如果客人有打勾「設為預設」
+            if update_profile == 'yes':
+                current_user.real_name = name
+                current_user.phone = phone
+                if shipping_method == 'home':
+                    current_user.address = address
+                elif shipping_method == 'store':
+                    current_user.store_info = store_name
         new_order = Order(
             order_no=order_no,
             user_id=current_user.id,
@@ -1272,6 +1313,50 @@ def check_referral():
     else:
         return jsonify({'valid': False, 'msg': '無效的推薦碼'})
 
+# ==========================================
+# ★ 結帳頁面專用：即時檢查 Email 是否撞號 API
+# ==========================================
+@app.route('/api/check_email', methods=['POST'])
+def check_email():
+    data = request.get_json()
+    email = data.get('email', '').strip()
+    
+    if not email:
+        return jsonify({'exists': False})
+        
+    user = User.query.filter_by(email=email).first()
+    
+    # 如果客人有登入，而且輸入的是「他自己的 Email」，那就不算撞號
+    if current_user.is_authenticated and user and user.id == current_user.id:
+        return jsonify({'exists': False})
+        
+    # 如果找到了，就代表被別人註冊走了
+    if user:
+        return jsonify({'exists': True})
+        
+    return jsonify({'exists': False})
+# ==========================================
+# ★ 結帳頁面專用：即時檢查 Phone 是否撞號 API
+# ==========================================
+@app.route('/api/check_phone', methods=['POST'])
+def check_phone():
+    data = request.get_json()
+    phone = data.get('phone', '').strip()
+    
+    if not phone:
+        return jsonify({'exists': False})
+        
+    user = User.query.filter_by(phone=phone).first()
+    
+    # 如果客人有登入，而且輸入的是他自己原本的電話，不算撞號
+    if current_user.is_authenticated and user and user.id == current_user.id:
+        return jsonify({'exists': False})
+        
+    # 如果找到了，代表被別人用了
+    if user:
+        return jsonify({'exists': True})
+        
+    return jsonify({'exists': False})
 # ==============================================================================
 # 5. 會員與後台路由 (Auth & Admin Routes)
 # ==============================================================================
@@ -1459,7 +1544,59 @@ def login():
             
     return render_template('login.html')
 
+# ==========================================
+# ★ Google 一鍵登入路由
+# ==========================================
+@app.route('/login/google')
+def login_google():
+    # 產生回傳網址 (會自動對應到下面的 authorize_google 函式)
+    redirect_uri = url_for('authorize_google', _external=True)
+    return google.authorize_redirect(redirect_uri)
 
+@app.route('/login/google/callback')
+def authorize_google():
+    # 1. 接收 Google 傳回來的資料
+    token = google.authorize_access_token()
+    user_info = token.get('userinfo')
+    
+    if not user_info:
+        flash('無法取得 Google 授權資料，請稍後再試。', 'error')
+        return redirect(url_for('login'))
+        
+    google_email = user_info.get('email')
+    google_name = user_info.get('name')
+    
+    # 2. 核心邏輯：去資料庫尋找這個 Email
+    user = User.query.filter_by(email=google_email).first()
+    
+    if user:
+        # 【情境 A】老客人：直接登入 (完美整併)
+        login_user(user)
+        flash(f'歡迎回來，{user.name}！', 'success')
+    else:
+        # 【情境 B】新客人：靜默註冊
+        import secrets
+        import string
+        from werkzeug.security import generate_password_hash
+        
+        # 隨機產生一組 16 碼的亂碼當作密碼 (因為他是用 Google 登入，不需要記密碼)
+        random_pwd = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+        
+        new_user = User(
+            email=google_email,
+            name=google_name, # 這裡會存入他在 Google 的暱稱
+            password_hash=generate_password_hash(random_pwd),
+            member_tier='Pure', # 預設給予 Pure 會員
+            # phone 和 address 留空，等結帳時再觸發「智慧回填」
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        
+        login_user(new_user)
+        flash('Google 登入成功！歡迎加入 P.D.K', 'success')
+        
+    # 3. 登入成功後，把客人導向首頁或會員中心
+    return redirect(url_for('home')) # 假設你的會員頁面路由叫做 member_profile，如果不對請改成對應的名稱
 # 2. 後台管理員登入 (路由：/admin/login)
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
@@ -1815,6 +1952,7 @@ def reset_password():
 def member():
     if request.method == 'POST':
         new_name = request.form.get('name')
+        new_real_name = request.form.get('real_name')
         new_phone = request.form.get('phone')
         new_address = request.form.get('address')
         new_store = request.form.get('store_info')
@@ -1824,6 +1962,7 @@ def member():
         
         if new_name and new_phone:
             current_user.name = new_name
+            current_user.real_name = new_real_name
             current_user.phone = new_phone
             current_user.address = new_address
             current_user.store_info = new_store
@@ -1858,10 +1997,6 @@ def member():
         return redirect(url_for('member'))
 
     return render_template('member.html')
-
-# ----------------------
-# 2. 我的帳號 (Dashboard - 會員儀表板)
-# ----------------------
 # ----------------------
 # 2. 我的帳號 (Dashboard - 會員儀表板)
 # ----------------------

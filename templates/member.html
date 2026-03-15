@@ -38,8 +38,12 @@
             {% endwith %}
 
             <div class="info-group">
-                <div class="info-label">姓名 Name</div>
+                <div class="info-label">名稱 Nickname</div>
                 <div class="info-value">{{ current_user.name or '-' }}</div>
+            </div>
+            <div class="info-group">
+                <div class="info-label">收件姓名 Real Name</div>
+                <div class="info-value" style="color: #ccc;">{{ current_user.real_name or '尚未設定 ' }}</div>
             </div>
             <div class="info-group">
                 <div class="info-label">生日 Birthday</div>
@@ -90,8 +94,13 @@
             <h3 class="modal-title">Edit Profile</h3>
             
             <form action="/member" method="POST">
-                <div class="info-label">姓名 Name</div>
+                <div class="info-label">名稱 Nickname</div>
                 <input type="text" name="name" class="modal-input" value="{{ current_user.name or '' }}" required>
+                
+                <div style="margin-top: 15px;">
+                    <div class="info-label">真實收件姓名 Real Name <span style="font-size: 0.8rem; color: #aaa;">(出貨使用)</span></div>
+                    <input type="text" name="real_name" class="modal-input" placeholder="請輸入真實姓名" value="{{ current_user.real_name or '' }}">
+                </div>
                 
                 <div style="margin-top: 15px;">
                     <div class="info-label">生日 Birthday <span style="font-size: 0.8rem; color: #ff5252;">(設定後不可修改)</span></div>
