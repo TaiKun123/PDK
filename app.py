@@ -1338,25 +1338,25 @@ def check_email():
 # ==========================================
 # ★ 結帳頁面專用：即時檢查 Phone 是否撞號 API
 # ==========================================
-@app.route('/api/check_phone', methods=['POST'])
-def check_phone():
-    data = request.get_json()
-    phone = data.get('phone', '').strip()
+# @app.route('/api/check_phone', methods=['POST'])
+# def check_phone():
+#     data = request.get_json()
+#     phone = data.get('phone', '').strip()
     
-    if not phone:
-        return jsonify({'exists': False})
+#     if not phone:
+#         return jsonify({'exists': False})
         
-    user = User.query.filter_by(phone=phone).first()
+#     user = User.query.filter_by(phone=phone).first()
     
-    # 如果客人有登入，而且輸入的是他自己原本的電話，不算撞號
-    if current_user.is_authenticated and user and user.id == current_user.id:
-        return jsonify({'exists': False})
+#     # 如果客人有登入，而且輸入的是他自己原本的電話，不算撞號
+#     if current_user.is_authenticated and user and user.id == current_user.id:
+#         return jsonify({'exists': False})
         
-    # 如果找到了，代表被別人用了
-    if user:
-        return jsonify({'exists': True})
+#     # 如果找到了，代表被別人用了
+#     if user:
+#         return jsonify({'exists': True})
         
-    return jsonify({'exists': False})
+#     return jsonify({'exists': False})
 # ==============================================================================
 # 5. 會員與後台路由 (Auth & Admin Routes)
 # ==============================================================================
@@ -1943,9 +1943,6 @@ def reset_password():
 
 # ----------------------
 # 1. 我的資料 (修改個人檔案)
-# ----------------------
-# ----------------------
-# 1. 我的資料 (修改個人檔案 - 修正版)
 # ----------------------
 @app.route('/member', methods=['GET', 'POST'])
 @login_required

@@ -545,7 +545,7 @@
         // ==========================================
         // ★ 魔法 1.5：Phone 撞號即時偵測 (AJAX)
         // ==========================================
-        if (inputs.inputPhone) {
+        {% comment %} if (inputs.inputPhone) {
             inputs.inputPhone.addEventListener('blur', async function() {
                 const phoneVal = this.value.trim();
                 const phoneErr = document.getElementById('err-inputPhone');
@@ -589,7 +589,7 @@
                 }
             });
             inputs.inputPhone.addEventListener('input', () => clearError('inputPhone'));
-        }
+        } {% endcomment %}
         // ==========================================
         // ★ 魔法 2：智慧資料更新勾勾
         // ==========================================
