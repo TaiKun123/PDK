@@ -543,54 +543,6 @@
             inputs.inputEmail.addEventListener('input', () => clearError('inputEmail'));
         }
         // ==========================================
-        // ★ 魔法 1.5：Phone 撞號即時偵測 (AJAX)
-        // ==========================================
-        {% comment %} if (inputs.inputPhone) {
-            inputs.inputPhone.addEventListener('blur', async function() {
-                const phoneVal = this.value.trim();
-                const phoneErr = document.getElementById('err-inputPhone');
-                
-                // 先檢查是不是正確的 10 碼數字
-                if (!validators.inputPhone(phoneVal)) {
-                    showError('inputPhone');
-                    phoneErr.innerText = "請輸入正確的台灣手機號碼 (10碼)";
-                    return;
-                }
-
-                try {
-                    const response = await fetch('/api/check_phone', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ phone: phoneVal })
-                    });
-                    const data = await response.json();
-                    
-                    if (data.exists) {
-                        // 撞號了！亮紅字並鎖定結帳按鈕
-                        phoneErr.innerText = "此電話已被其他會員使用，請更換";
-                        phoneErr.classList.add('show');
-                        this.classList.add('error');
-                        if (submitBtn) {
-                            submitBtn.disabled = true;
-                            submitBtn.style.opacity = '0.5';
-                            submitBtn.style.cursor = 'not-allowed';
-                        }
-                    } else {
-                        // 沒撞號，恢復預設文字並解鎖
-                        clearError('inputPhone');
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.style.opacity = '1';
-                            submitBtn.style.cursor = 'pointer';
-                        }
-                    }
-                } catch(err) {
-                    console.error('Phone 檢查失敗:', err);
-                }
-            });
-            inputs.inputPhone.addEventListener('input', () => clearError('inputPhone'));
-        } {% endcomment %}
-        // ==========================================
         // ★ 魔法 2：智慧資料更新勾勾
         // ==========================================
         const updateBox = document.getElementById('updateProfileBox');
