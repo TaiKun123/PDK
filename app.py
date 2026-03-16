@@ -9,6 +9,7 @@ from flask_mail import Mail, Message
 from datetime import datetime, timedelta # 確保引入這兩個# ★★★ 新增：寄信模組
 from threading import Thread # ★★★ 新增這行
 from authlib.integrations.flask_client import OAuth
+from werkzeug.middleware.proxy_fix import ProxyFix # ★★★ 1. 確保有引入這行
 import os
 import requests # 用來發送 API 請求
 import json
@@ -22,6 +23,7 @@ import uuid
 
 app = Flask(__name__)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 # ==============================================================================
 # 1. 設定 (Configuration) - 智慧切換資料庫
 # ==============================================================================
@@ -37,7 +39,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///pdk.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'your_super_secret_key_change_this_in_production' 
 
-
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # ★★★ 新增：Gmail 寄信設定 ★★★
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
