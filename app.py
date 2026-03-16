@@ -67,6 +67,16 @@ google = oauth.register(
         'scope': 'openid email profile'
     }
 )
+
+line = oauth.register(
+    name='line',
+    client_id=os.environ.get('LINE_LOGIN_ID'),       # 對應你的 Channel ID
+    client_secret=os.environ.get('LINE_LOGIN_SECRET'), # 對應你的 Channel Secret
+    server_metadata_url='https://access.line.me/.well-known/openid-configuration',
+    client_kwargs={
+        'scope': 'openid profile email'
+    }
+)
 # --- ★★★ Brevo 高速寄信函式 ★★★ ---
 def send_via_brevo(to_email, subject, html_content):
     url = "https://api.brevo.com/v3/smtp/email"
@@ -1564,7 +1574,7 @@ def authorize_google():
             email=google_email,
             name=google_name, # 這裡會存入他在 Google 的暱稱
             password_hash=generate_password_hash(random_pwd),
-            member_tier='Pure', # 預設給予 Pure 會員
+            member_tier='General', # 預設給予 Pure 會員
             # phone 和 address 留空，等結帳時再觸發「智慧回填」
         )
         db.session.add(new_user)
@@ -1575,6 +1585,65 @@ def authorize_google():
         
     # 3. 登入成功後，把客人導向首頁或會員中心
     return redirect(url_for('home')) # 假設你的會員頁面路由叫做 member_profile，如果不對請改成對應的名稱
+
+# ==========================================
+# ★★★ 新增：LINE 一鍵登入路由 ★★★
+# ==========================================
+@app.route('/login/line')
+def login_line():
+    # 產生回傳網址 (會自動對應到下面的 authorize_line 函式)
+    redirect_uri = url_for('authorize_line', _external=True)
+    return line.authorize_redirect(redirect_uri,bot_prompt='aggressive')
+
+@app.route('/login/line/callback')
+def authorize_line():
+    # 1. 接收 LINE 傳回來的資料
+    token = line.authorize_access_token()
+    user_info = token.get('userinfo')
+    
+    if not user_info:
+        flash('無法取得 LINE 授權資料，請稍後再試。', 'error')
+        return redirect(url_for('login'))
+        
+    line_email = user_info.get('email')
+    line_name = user_info.get('name')
+    line_id = user_info.get('sub') # LINE 的唯一用戶 ID
+    
+    # ★ 防呆：如果 LINE 沒給 Email，或客人沒綁定，假造一個專屬 Email
+    if not line_email:
+        line_email = f"{line_id}@line.pdk.com"
+    
+    # 2. 去資料庫尋找這個 Email
+    user = User.query.filter_by(email=line_email).first()
+    
+    if user:
+        # 【情境 A】老客人：直接登入
+        login_user(user)
+        flash(f'歡迎回來，{user.name}！', 'success')
+    else:
+        # 【情境 B】新客人：靜默註冊
+        import secrets
+        import string
+        from werkzeug.security import generate_password_hash
+        
+        # 隨機產生一組 16 碼的亂碼當作密碼 (因為他是用 LINE 登入，不需要記密碼)
+        random_pwd = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+        
+        new_user = User(
+            email=line_email,
+            name=line_name,
+            password_hash=generate_password_hash(random_pwd),
+            member_tier='General', # 預設給予 Pure 會員
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        
+        login_user(new_user)
+        flash('LINE 登入成功！歡迎加入 P.D.K', 'success')
+        
+    # 3. 登入成功後，把客人導向首頁
+    return redirect(url_for('home'))
+
 # 2. 後台管理員登入 (路由：/admin/login)
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
@@ -1838,6 +1907,11 @@ def delete_coupon():
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')
+        
+        # ★★★ 新增：精準阻擋 LINE 假造信箱 ★★★
+        if '@line.pdk.com' in email:
+            flash('您是使用 LINE 快速註冊的會員，請直接點擊 LINE 按鈕登入。')
+            return redirect(url_for('login'))
         
         # 檢查 Email 是否存在於資料庫
         user = User.query.filter_by(email=email).first()

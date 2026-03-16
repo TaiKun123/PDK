@@ -204,7 +204,13 @@
 
                     <div class="info-item">
                         <span class="info-label">信箱</span>
-                        <div class="info-value email">{{ current_user.email }}</div>
+                        <div class="info-value email">
+                            {% if '@line.pdk.com' in current_user.email %}
+                                <span style="color: #aaa; font-size: 0.85rem;">--</span>
+                            {% else %}
+                                {{ current_user.email }}
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
 

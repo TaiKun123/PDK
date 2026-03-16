@@ -185,7 +185,7 @@
                         <label class="form-label">電子信箱 Email</label>
                         <input type="email" id="inputEmail" name="email" class="form-input" 
                                placeholder="請輸入 Email 以接收訂單通知" required
-                               value="{% if current_user.is_authenticated and current_user.email %}{{ current_user.email }}{% endif %}">
+                               value="{% if current_user.is_authenticated and current_user.email and '@line.pdk.com' not in current_user.email %}{{ current_user.email }}{% endif %}">
                         <div class="checkout-error-msg" id="err-inputEmail">Email 格式不正確</div>
                         <div id="emailSuggestion" class="suggestion-msg"></div>
                     </div>

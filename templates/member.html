@@ -63,7 +63,13 @@
             
             <div class="info-group">
                 <div class="info-label">信箱 Email</div>
-                <div class="info-value" style="color: #888;">{{ current_user.email }}</div>
+                <div class="info-value" style="color: #888;">
+                    {% if '@line.pdk.com' in current_user.email %}
+                        未綁定 <span style="font-size: 0.8rem; color: #555;">(結帳時可輸入以接收通知)</span>
+                    {% else %}
+                        {{ current_user.email }}
+                    {% endif %}
+                </div>
             </div>
 
             <div class="info-group" style="margin-top: 30px;">
