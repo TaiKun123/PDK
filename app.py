@@ -73,11 +73,12 @@ google = oauth.register(
 
 line = oauth.register(
     name='line',
-    client_id=os.environ.get('LINE_LOGIN_ID'),       # 對應你的 Channel ID
-    client_secret=os.environ.get('LINE_LOGIN_SECRET'), # 對應你的 Channel Secret
+    client_id=os.environ.get('LINE_LOGIN_ID'),
+    client_secret=os.environ.get('LINE_LOGIN_SECRET'),
     server_metadata_url='https://access.line.me/.well-known/openid-configuration',
     client_kwargs={
-        'scope': 'openid profile email'
+        'scope': 'openid profile email',
+        'jwks_algorithms': ['ES256', 'RS256']  # ★★★ 關鍵加這行！允許解析 LINE 的 ES256 演算法
     }
 )
 # --- ★★★ Brevo 高速寄信函式 ★★★ ---
