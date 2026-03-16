@@ -77,8 +77,7 @@ line = oauth.register(
     client_secret=os.environ.get('LINE_LOGIN_SECRET'),
     server_metadata_url='https://access.line.me/.well-known/openid-configuration',
     client_kwargs={
-        'scope': 'openid profile email',
-        'jwks_algorithms': ['ES256', 'RS256']  # ★★★ 關鍵加這行！允許解析 LINE 的 ES256 演算法
+        'scope': 'openid profile email'
     }
 )
 # --- ★★★ Brevo 高速寄信函式 ★★★ ---
@@ -1601,17 +1600,36 @@ def login_line():
 
 @app.route('/login/line/callback')
 def authorize_line():
-    # 1. 接收 LINE 傳回來的資料
-    token = line.authorize_access_token()
-    user_info = token.get('userinfo')
-    
-    if not user_info:
-        flash('無法取得 LINE 授權資料，請稍後再試。', 'error')
+    # 1. 接收 LINE 傳回來的通行證 (Access Token)
+    # 我們加入 parse_id_token='none'，強制命令 Authlib 不要去解密那個會報錯的 id_token！
+    token = line.authorize_access_token(parse_id_token='none')
+    access_token = token.get('access_token')
+
+    if not access_token:
+        flash('無法取得 LINE 授權通行證，請稍後再試。', 'error')
         return redirect(url_for('login'))
-        
-    line_email = user_info.get('email')
-    line_name = user_info.get('name')
-    line_id = user_info.get('sub') # LINE 的唯一用戶 ID
+
+    # 2. 直接拿著通行證，去敲 LINE 的大門要資料！
+    headers = {'Authorization': f'Bearer {access_token}'}
+    # 這個 API 可以一口氣拿到 LINE ID (sub)、名字 (name)、大頭貼 (picture)
+    profile_res = requests.get('https://api.line.me/v2/profile', headers=headers)
+    profile_data = profile_res.json()
+    
+    # 3. 另外去驗證 ID Token 來拿到 Email (繞過 Authlib 的檢查)
+    id_token = token.get('id_token')
+    email_data = {}
+    if id_token:
+        payload = {
+            'id_token': id_token,
+            'client_id': os.environ.get('LINE_LOGIN_ID')
+        }
+        # 請 LINE 官方幫我們解密這個 id_token，並把 Email 給我們
+        verify_res = requests.post('https://api.line.me/oauth2/v2.1/verify', data=payload)
+        email_data = verify_res.json()
+
+    line_id = profile_data.get('userId')
+    line_name = profile_data.get('displayName')
+    line_email = email_data.get('email')
     
     # ★ 防呆：如果 LINE 沒給 Email，或客人沒綁定，假造一個專屬 Email
     if not line_email:
