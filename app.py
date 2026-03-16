@@ -1592,70 +1592,103 @@ def authorize_google():
 # ==========================================
 # ★★★ 新增：LINE 一鍵登入路由 ★★★
 # ==========================================
+
+# ==========================================
+# ★★★ 全新寫法：捨棄 Authlib，純 API LINE 一鍵登入 ★★★
+# ==========================================
 @app.route('/login/line')
 def login_line():
-    # 產生回傳網址 (會自動對應到下面的 authorize_line 函式)
+    # 1. 產生安全碼防偽造，並存入 session
+    state = str(uuid.uuid4())
+    session['line_state'] = state
+    
+    # 2. 準備參數
+    client_id = os.environ.get('LINE_LOGIN_ID')
     redirect_uri = url_for('authorize_line', _external=True)
-    return line.authorize_redirect(redirect_uri,bot_prompt='aggressive')
+    
+    # 3. 手動組合 LINE 登入網址 (包含積極加好友 bot_prompt=aggressive)
+    line_auth_url = (
+        f"https://access.line.me/oauth2/v2.1/authorize"
+        f"?response_type=code"
+        f"&client_id={client_id}"
+        f"&redirect_uri={redirect_uri}"
+        f"&state={state}"
+        f"&scope=profile%20openid%20email"
+        f"&bot_prompt=aggressive"
+    )
+    return redirect(line_auth_url)
 
 @app.route('/login/line/callback')
 def authorize_line():
-    # 1. 接收 LINE 傳回來的通行證 (Access Token)
-    # 我們加入 parse_id_token='none'，強制命令 Authlib 不要去解密那個會報錯的 id_token！
-    token = line.authorize_access_token(parse_id_token='none')
-    access_token = token.get('access_token')
+    # 1. 檢查安全碼是否正確
+    code = request.args.get('code')
+    state = request.args.get('state')
+    
+    if state != session.get('line_state'):
+        flash('登入狀態異常，請重新嘗試。', 'error')
+        return redirect(url_for('login'))
+        
+    client_id = os.environ.get('LINE_LOGIN_ID')
+    client_secret = os.environ.get('LINE_LOGIN_SECRET')
+    redirect_uri = url_for('authorize_line', _external=True)
 
-    if not access_token:
-        flash('無法取得 LINE 授權通行證，請稍後再試。', 'error')
+    # 2. 拿 code 去跟 LINE 換取 Access Token (通行證)
+    token_url = 'https://api.line.me/oauth2/v2.1/token'
+    token_data = {
+        'grant_type': 'authorization_code',
+        'code': code,
+        'redirect_uri': redirect_uri,
+        'client_id': client_id,
+        'client_secret': client_secret
+    }
+    token_res = requests.post(token_url, data=token_data)
+    token_json = token_res.json()
+    
+    if 'access_token' not in token_json:
+        flash('無法取得 LINE 授權，請稍後再試。', 'error')
         return redirect(url_for('login'))
 
-    # 2. 直接拿著通行證，去敲 LINE 的大門要資料！
-    headers = {'Authorization': f'Bearer {access_token}'}
-    # 這個 API 可以一口氣拿到 LINE ID (sub)、名字 (name)、大頭貼 (picture)
+    # 3. 用 Access Token 獲取使用者基本資料 (姓名、ID)
+    headers = {'Authorization': f"Bearer {token_json['access_token']}"}
     profile_res = requests.get('https://api.line.me/v2/profile', headers=headers)
-    profile_data = profile_res.json()
-    
-    # 3. 另外去驗證 ID Token 來拿到 Email (繞過 Authlib 的檢查)
-    id_token = token.get('id_token')
+    profile_json = profile_res.json()
+
+    # 4. 把難搞的 id_token 丟給 LINE 官方幫我們解密拿 Email
     email_data = {}
-    if id_token:
-        payload = {
-            'id_token': id_token,
-            'client_id': os.environ.get('LINE_LOGIN_ID')
-        }
-        # 請 LINE 官方幫我們解密這個 id_token，並把 Email 給我們
-        verify_res = requests.post('https://api.line.me/oauth2/v2.1/verify', data=payload)
+    if 'id_token' in token_json:
+        verify_res = requests.post('https://api.line.me/oauth2/v2.1/verify', data={
+            'id_token': token_json['id_token'],
+            'client_id': client_id
+        })
         email_data = verify_res.json()
 
-    line_id = profile_data.get('userId')
-    line_name = profile_data.get('displayName')
+    # 5. 整理我們需要的資料
+    line_id = profile_json.get('userId')
+    line_name = profile_json.get('displayName')
     line_email = email_data.get('email')
-    
-    # ★ 防呆：如果 LINE 沒給 Email，或客人沒綁定，假造一個專屬 Email
+
+    # ★ 防呆：如果 LINE 沒給 Email，假造一個專屬 Email
     if not line_email:
         line_email = f"{line_id}@line.pdk.com"
     
-    # 2. 去資料庫尋找這個 Email
+    # --- 下方的登入與註冊邏輯完全維持原樣 ---
     user = User.query.filter_by(email=line_email).first()
     
     if user:
-        # 【情境 A】老客人：直接登入
         login_user(user)
         flash(f'歡迎回來，{user.name}！', 'success')
     else:
-        # 【情境 B】新客人：靜默註冊
         import secrets
         import string
         from werkzeug.security import generate_password_hash
         
-        # 隨機產生一組 16 碼的亂碼當作密碼 (因為他是用 LINE 登入，不需要記密碼)
         random_pwd = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
         
         new_user = User(
             email=line_email,
             name=line_name,
             password_hash=generate_password_hash(random_pwd),
-            member_tier='General', # 預設給予 Pure 會員
+            member_tier='General', 
         )
         db.session.add(new_user)
         db.session.commit()
@@ -1663,7 +1696,6 @@ def authorize_line():
         login_user(new_user)
         flash('LINE 登入成功！歡迎加入 P.D.K', 'success')
         
-    # 3. 登入成功後，把客人導向首頁
     return redirect(url_for('home'))
 
 # 2. 後台管理員登入 (路由：/admin/login)
