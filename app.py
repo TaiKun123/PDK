@@ -1619,7 +1619,12 @@ def login_line():
     return redirect(line_auth_url)
 
 @app.route('/login/line/callback')
+
 def authorize_line():
+    error = request.args.get('error')
+    if error:
+        flash('您已取消 LINE 登入授權。', 'warning')
+        return redirect(url_for('login'))
     # 1. 檢查安全碼是否正確
     code = request.args.get('code')
     state = request.args.get('state')
