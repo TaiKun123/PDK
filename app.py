@@ -522,7 +522,7 @@ def calculate_order_price(user, cart_items, selected_user_vouchers=[], promo_cod
             
     # 4. 運費計算
     shipping_fee = 0
-    original_shipping = 100 if shipping_method == 'home' else 40
+    original_shipping = 100 if shipping_method == 'home' else 20
     shipping_fee = original_shipping
     
     if subtotal >= 2000:
@@ -2345,6 +2345,18 @@ def delete_order():
     order_id = request.form.get('order_id')
     order = Order.query.get(order_id)
     if order:
+        # ★★★ 解決外鍵衝突：先找出並刪除與此訂單綁定的「優惠碼」使用紀錄
+        usages = CouponUsage.query.filter_by(order_id=order.id).all()
+        for usage in usages:
+            # 順便歸還優惠碼的全站使用次數
+            coupon = Coupon.query.get(usage.coupon_id)
+            if coupon and coupon.used_count > 0:
+                coupon.used_count -= 1
+            
+            # 刪除該筆使用紀錄
+            db.session.delete(usage)
+            
+        # ★★★ 刪除子紀錄後，就可以安全地刪除訂單了
         db.session.delete(order)
         db.session.commit()
     

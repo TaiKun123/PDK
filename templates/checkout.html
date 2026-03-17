@@ -214,7 +214,7 @@
                         <label class="form-label">送貨方式(滿2000免運)</label>
                         <select name="shipping_method" id="shippingSelect" class="form-input">
                             <option value="home" data-price="100" selected>黑貓宅配 (運費 NT$100)</option>
-                            <option value="store" data-price="40">7-11 超商取貨 (運費 NT$40)</option>
+                            <option value="store" data-price="20">7-11 超商取貨 (運費 NT$20)</option>
                         </select>
                     </div>
                     
@@ -641,7 +641,7 @@
             }
 
             let currentShipping = 100; 
-            if (shippingSelect.value === 'store') currentShipping = 40; 
+            if (shippingSelect.value === 'store') currentShipping = 20; 
 
             let finalShipping = currentShipping;
 
