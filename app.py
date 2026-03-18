@@ -39,7 +39,14 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///pdk.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'your_super_secret_key_change_this_in_production' 
 
-app.config['SESSION_COOKIE_SECURE'] = True
+# ★★★ 修正：智慧切換 Cookie 安全限制 (解決本地端無法登入的問題)
+if os.environ.get('DATABASE_URL'):
+    # 如果是在 Render 上 (有資料庫網址)，就開啟嚴格模式
+    app.config['SESSION_COOKIE_SECURE'] = True
+else:
+    # 如果是在本機測試 (http)，就關閉嚴格模式
+    app.config['SESSION_COOKIE_SECURE'] = False
+
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # ★★★ 新增：Gmail 寄信設定 ★★★
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -368,7 +375,20 @@ def create_initial_data():
         admin.set_password('1234') # ★★★ 這裡設定預設密碼 ★★★
         db.session.add(admin)
         db.session.commit()
-
+    # ★★★ 新增：建立本機測試用的普通會員帳號 ★★★
+    if not User.query.filter_by(email='test@pdk.com').first():
+        print("建立測試會員帳號...")
+        test_user = User(
+            email='test@pdk.com', 
+            name='測試專員', 
+            real_name='陳測試', 
+            phone='0912345678', 
+            role='customer',
+            member_tier='Pure'
+        )
+        test_user.set_password('1234') # 密碼一樣設為 1234 方便你測試
+        db.session.add(test_user)
+        db.session.commit()
     # 2. 檢查並建立預設商品
     if not Product.query.first():
         print("初始化商品資料庫...")
@@ -612,7 +632,164 @@ def product_page(product_id):
     product = Product.query.get_or_404(product_id)
     # 傳給通用的 product_detail.html
     return render_template('product_detail.html', product=product)
+# ==========================================
+# ★ 試用品活動專區
+# ==========================================
+TOTAL_TRIAL_QUOTA = 100  # ★ 這裡設定總份數，以後想加碼直接改這裡
+@app.route('/trial_checkout')
+@login_required
+def trial_checkout():
+    # 1. 計算目前已經發放了幾份 (排除已取消的訂單)
+    used_trial_count = Order.query.filter(
+        Order.order_no.startswith('TRIAL-'),
+        Order.status != 'cancelled'
+    ).count()
+    
+    remaining_quota = max(0, TOTAL_TRIAL_QUOTA - used_trial_count)
+    progress_percent = min(100, int((used_trial_count / TOTAL_TRIAL_QUOTA) * 100))
 
+    # 2. 檢查是否已經領過 (防呆機制：一人一次)
+    has_trial = Order.query.filter(
+        Order.user_id == current_user.id, 
+        Order.order_no.startswith('TRIAL-')
+    ).first()
+    
+    if has_trial:
+        flash('您已經參與過試用品活動囉！', 'warning')
+        return redirect(url_for('home'))
+        
+    # 把進度條資料傳給前端
+    return render_template('trial_checkout.html', 
+                           total_quota=TOTAL_TRIAL_QUOTA, 
+                           remaining_quota=remaining_quota, 
+                           progress_percent=progress_percent)
+
+@app.route('/submit_trial_order', methods=['POST'])
+@login_required
+def submit_trial_order():
+    # ★ 防呆 1：檢查是否已經被搶光了 (防止客人在頁面停留太久，別人已經搶完)
+    used_trial_count = Order.query.filter(
+        Order.order_no.startswith('TRIAL-'),
+        Order.status != 'cancelled'
+    ).count()
+    
+    if used_trial_count >= TOTAL_TRIAL_QUOTA:
+        flash('非常抱歉，限量試用品已被索取完畢！', 'error')
+        return redirect(url_for('home'))
+
+    # ★ 防呆 2：檢查是否已經領過
+    if Order.query.filter(Order.user_id == current_user.id, Order.order_no.startswith('TRIAL-')).first():
+        flash('您已經參與過試用品活動囉！', 'error')
+        return redirect(url_for('home'))
+
+    try:
+        name = request.form.get('name')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        store_name = request.form.get('store_name')
+        payment_method = request.form.get('payment_method')
+        selected_product = request.form.get('trial_product') # 抓取選擇的商品
+        update_profile = request.form.get('update_profile')
+
+        # 智慧回填會員資料
+        if not current_user.real_name or update_profile == 'yes':
+            current_user.real_name = name
+        if not current_user.phone or update_profile == 'yes':
+            current_user.phone = phone
+        if not current_user.store_info or update_profile == 'yes':
+            current_user.store_info = store_name
+
+        # 建立試用品專屬訂單編號
+        date_str = datetime.datetime.now().strftime("%Y%m%d")
+        rand_num = random.randint(1000, 9999)
+        order_no = f"TRIAL-{date_str}-{rand_num}"
+
+        # 虛擬購物車內容 (寫入訂單明細供後台查看)
+        cart_items = [{"name": f"【試用品】{selected_product}", "price": 38, "qty": 1, "image": ""}]
+
+        new_order = Order(
+            order_no=order_no,
+            user_id=current_user.id,
+            customer_name=name,
+            customer_email=email,
+            customer_phone=phone,
+            shipping_method='store', # 強制超商
+            address=store_name,
+            payment_method=payment_method,
+            total_amount=0,       # 商品 $0
+            shipping_fee=38,      # 物流處理費 $38
+            discount_amount=0,
+            final_total=38,       # 總計 $38
+            cart_items=json.dumps(cart_items, ensure_ascii=False),
+            status='pending'
+        )
+
+        db.session.add(new_order)
+        db.session.commit()
+
+        # 如果是 LINE Pay，走相同的 LINE Pay 流程
+        if payment_method == 'linepay':
+            uri = "/v3/payments/request"
+            nonce = str(uuid.uuid4())
+            
+            line_product = {
+                "id": "trial_1",
+                "name": f"P.D.K 試用品領取物流費",
+                "quantity": 1,
+                "price": 38
+            }
+
+            payload = {
+                "amount": 38,
+                "currency": "TWD",
+                "orderId": order_no,
+                "packages": [{
+                    "id": "pack_trial",
+                    "amount": 38,
+                    "name": "P.D.K 試用品",
+                    "products": [line_product]
+                }],
+                "redirectUrls": {
+                    "confirmUrl": f"{SERVER_URL}/linepay/confirm",
+                    "cancelUrl": f"{SERVER_URL}/trial_checkout"
+                }
+            }
+            
+            payload_str = json.dumps(payload)
+            signature = generate_line_pay_signature(uri, payload_str, nonce)
+            headers = {
+                "Content-Type": "application/json",
+                "X-LINE-ChannelId": LINE_PAY_ID,
+                "X-LINE-Authorization-Nonce": nonce,
+                "X-LINE-Authorization": signature
+            }
+            
+            res = requests.post(LINE_PAY_API_URL + uri, headers=headers, data=payload_str)
+            res_data = res.json()
+            
+            if res_data.get('returnCode') == '0000':
+                return redirect(res_data['info']['paymentUrl']['web'])
+            else:
+                flash(f"LINE Pay 請求失敗: {res_data.get('returnMessage')}", 'error')
+                return redirect(url_for('trial_checkout'))
+        try:
+            print("正在嘗試寄送試用品確認信...")
+            send_trial_confirmation_email(new_order, selected_product)  # ★ 使用試用品專屬信件
+            send_merchant_trial_email(new_order, selected_product)      # ★ 使用試用品專屬信件
+        except Exception as e:
+            print(f"試用品寄信失敗: {e}")
+            
+        return render_template('trial_success.html', 
+                               order_id=order_no, 
+                               name=name, 
+                               final_total=38, 
+                               payment_method=payment_method, 
+                               order=new_order)
+
+    except Exception as e:
+        print(f"Submit Trial Order Error: {e}")
+        db.session.rollback()
+        return f"建立失敗: {str(e)}", 500
 # ----------------------
 # 結帳頁面 (修改：傳送折扣券資料給前端)
 # ----------------------
@@ -779,6 +956,48 @@ def send_shipping_notification_email(order):
         print(f"✅ 出貨通知信已排入背景發送 (訂單 {order.order_no})")
     except Exception as e:
         print(f"❌ 出貨通知信發送失敗: {e}")
+# --- 試用品活動專屬寄信 ---
+def send_trial_confirmation_email(order, product_name):
+    try:
+        subject = f"【P.D.K】試用品活動！感謝您的參與"
+        content = f"""
+        <html>
+        <body style="font-family: sans-serif; line-height: 1.6; color: #333;">
+            <p>{order.customer_name} 您好，</p>
+            <p>感謝您參與 P.D.K 的專屬體驗活動！我們已成功收到您的試用品索取申請囉。</p>
+            <p>訂單編號：{order.order_no}<br>
+            索取商品：{product_name}<br>
+            物流費用：NT$ 38</p>
+            <p>我們將於 1-3 個工作天內為您安排出貨，商品送達指定的 7-11 門市時會再以簡訊通知您。<br>
+            期待 P.D.K 能為您的頭皮與髮絲帶來更好的養護體驗！</p>
+        </body>
+        </html>
+        """
+        Thread(target=send_via_brevo, args=(order.customer_email, subject, content)).start()
+        print(f"✅ 試用品確認信已排入背景發送 (訂單 {order.order_no})")
+    except Exception as e:
+        print(f"❌ 試用品確認信發送失敗: {e}")
+
+def send_merchant_trial_email(order, product_name):
+    try:
+        subject = f"【試用品新單】#{order.order_no} - {order.customer_name} 索取了試用品"
+        merchant_email = "pdk.salon.office@gmail.com" 
+        
+        content = f"""
+        <html>
+        <body style="font-family: sans-serif; line-height: 1.6; color: #333;">
+            <h2>老闆，活動有人參加了，有客人索取試用品！</h2>
+            <p>訂單編號：{order.order_no}</p>
+            <p>顧客姓名：{order.customer_name}</p>
+            <p>索取商品：{product_name}</p>
+            <p>請登入後台的「試用品訂單」專區查看詳細資訊並安排出貨。</p>
+        </body>
+        </html>
+        """
+        Thread(target=send_via_brevo, args=(merchant_email, subject, content)).start()
+        print(f"✅ 商家試用單通知信已排入背景發送")
+    except Exception as e:
+        print(f"❌ 商家試用單通知信發送失敗: {e}")
 # ==============================================================================
 # ★★★ 新增區塊 2：優惠券檢查 API (給前端 JS 呼叫) ★★★
 # ==============================================================================
@@ -852,7 +1071,8 @@ def check_membership_upgrade(user):
     
     valid_orders = Order.query.filter(
         Order.user_id == user.id,
-        Order.status.in_(valid_statuses)
+        Order.status.in_(valid_statuses),
+        ~Order.order_no.startswith('TRIAL-')
     ).all()
 
     # 2. 計算累積數據
@@ -1277,20 +1497,36 @@ def linepay_confirm():
             order.linepay_transaction_id = transaction_id # 存入專屬交易碼
             db.session.commit()
 
-            # 付款成功後，才寄送確認信給客人跟商家
+            # ★★★ 新增分流：判斷是一般訂單還是試用品訂單 ★★★
             try:
-                send_order_confirmation_email(order)
-                send_merchant_new_order_email(order)
+                if order.order_no.startswith('TRIAL-'):
+                    # 試用品訂單：抓取商品名稱並寄專屬信
+                    cart_data = json.loads(order.cart_items)
+                    product_name = cart_data[0].get('name', '').replace('【試用品】', '').strip()
+                    send_trial_confirmation_email(order, product_name)
+                    send_merchant_trial_email(order, product_name)
+                else:
+                    # 一般訂單：寄一般信
+                    send_order_confirmation_email(order)
+                    send_merchant_new_order_email(order)
             except Exception as e:
                 print(f"寄信失敗: {e}")
 
-            # 導向你美美的成功頁面
-            return render_template('order_success.html',
-                                   order_id=order.order_no,
-                                   name=order.customer_name,
-                                   final_total=order.final_total,
-                                   payment_method='linepay',
-                                   order=order)
+            # ★★★ 導向畫面也要分流 ★★★
+            if order.order_no.startswith('TRIAL-'):
+                return render_template('trial_success.html',
+                                       order_id=order.order_no,
+                                       name=order.customer_name,
+                                       final_total=order.final_total,
+                                       payment_method='linepay',
+                                       order=order)
+            else:
+                return render_template('order_success.html',
+                                       order_id=order.order_no,
+                                       name=order.customer_name,
+                                       final_total=order.final_total,
+                                       payment_method='linepay',
+                                       order=order)
         else:
             flash(f"付款失敗: {res_data.get('returnMessage')}", 'error')
             return redirect(url_for('checkout_page'))
@@ -1529,7 +1765,11 @@ def login():
             # ★★★ 結束新增 ★★★
             # ==========================================
 
-            return redirect(url_for('home')) 
+            # ★★★ 修正：判斷是否有 next 參數，有的話就跳回原本的頁面
+            next_page = request.args.get('next')
+            if next_page:
+                return redirect(next_page)
+            return redirect(url_for('home'))
         else:
             flash('帳號或密碼錯誤', 'error')
             
@@ -2204,7 +2444,8 @@ def admin_orders():
     status_filter = request.args.get('status', 'all')
     search_query = request.args.get('q', '').strip()
 
-    query = Order.query
+    # 排除 TRIAL- 訂單，讓一般訂單畫面乾淨
+    query = Order.query.filter(~Order.order_no.startswith('TRIAL-'))
     if status_filter != 'all':
         query = query.filter_by(status=status_filter)
 
@@ -2243,6 +2484,35 @@ def admin_orders():
                            status_filter=status_filter,
                            search_query=search_query,
                            dashboard=dashboard)
+
+@app.route('/admin/trial_orders')
+@login_required
+def admin_trial_orders():
+    if current_user.role != 'admin':
+        return redirect(url_for('home'))
+
+    page = request.args.get('page', 1, type=int)
+    status_filter = request.args.get('status', 'all')
+    search_query = request.args.get('q', '').strip()
+
+    # ★★★ 只抓 TRIAL- 開頭的訂單
+    query = Order.query.filter(Order.order_no.startswith('TRIAL-'))
+    
+    if status_filter != 'all':
+        query = query.filter_by(status=status_filter)
+
+    if search_query:
+        query = query.filter(or_(
+            Order.order_no.contains(search_query),
+            Order.customer_name.contains(search_query),
+            Order.customer_phone.contains(search_query)
+        ))
+
+    query = query.order_by(Order.created_at.desc())
+    pagination = query.paginate(page=page, per_page=10, error_out=False)
+    orders = pagination.items
+
+    return render_template('admin/trial_orders.html', orders=orders, pagination=pagination, status_filter=status_filter, search_query=search_query)
 
 @app.route('/admin/order/<int:order_id>')
 @login_required

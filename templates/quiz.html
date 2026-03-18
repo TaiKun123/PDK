@@ -371,7 +371,7 @@
 
 <script>
     const DB_PRODUCTS = {{ products_json | safe }};
-    
+    const isFromTrial = new URLSearchParams(window.location.search).get('from') === 'trial';
     // 矩陣權重表
     const weightMatrix = {
         shampoo: {
@@ -570,7 +570,20 @@
         renderResultBlock('shampooResults', [bestShampoos[0], bestShampoos[1]]);
         renderResultBlock('conditionerResults', [bestConditioners[0]]);
         renderResultBlock('haircareResults', [bestHaircares[0], bestHaircares[1]]);
-        
+        if (isFromTrial) {
+            // 避免重複加入
+            if (!document.getElementById('returnTrialBtn')) {
+                let returnBtn = document.createElement('button');
+                returnBtn.id = 'returnTrialBtn';
+                returnBtn.className = 'btn-nav btn-nav-full';
+                returnBtn.style.cssText = 'margin-top: 15px; background: #2b2b2b; color: #fff; border: none; font-size: 1.1rem; letter-spacing: 2px;';
+                returnBtn.innerText = '✨ 記下推薦結果，返回領取試用品';
+                returnBtn.onclick = function() {
+                    window.location.href = '/trial_checkout'; // 導回試用頁面
+                };
+                document.getElementById('resultArea').appendChild(returnBtn);
+            }
+        }
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 

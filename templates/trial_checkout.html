@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>試用品領取 | P.D.K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .trial-banner { text-align: center; margin-bottom: 30px; color: #fff; }
+        .trial-banner h2 { font-family: 'Playfair Display', serif; font-size: 2rem; letter-spacing: 2px; margin-bottom: 10px; }
+        .trial-banner p { color: #aaa; font-size: 0.95rem; }
+        .quiz-hint-btn { 
+            display: block; 
+            width: 100%; 
+            text-align: center; 
+            background: transparent; 
+            border: 1px solid #fff;  
+            color: #fff;             
+            padding: 15px; 
+            border-radius: 4px; 
+            text-decoration: none; 
+            margin-top: 15px; 
+            transition: 0.3s; 
+            letter-spacing: 1px; 
+            font-weight: bold; 
+        }
+        .quiz-hint-btn:hover { 
+            background: #fff;        
+            color: #000;             
+        }
+        /* 限量倒數外框 */
+        .quota-box {
+            background: rgba(255,255,255,0.03); 
+            border: 1px solid rgba(255, 255, 255, 0.3); 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin-bottom: 30px;
+        }
+        .quota-header {
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 10px; 
+            font-size: 0.95rem;
+        }
+        .quota-title {
+            color: #fff; 
+            font-weight: bold; 
+            letter-spacing: 1px;
+        }
+        .quota-text {
+            color: #aaa;
+        }
+        .quota-number {
+            color: #fff; 
+            font-weight: bold; 
+            font-size: 1.1rem;
+        }
+        /* 進度條底色 */
+        .progress-track {
+            width: 100%; 
+            height: 8px; 
+            background: rgba(255,255,255,0.1); 
+            border-radius: 10px; 
+            overflow: hidden;
+        }
+        /* 進度條填滿色 (白色) */
+        .progress-fill {
+            height: 100%; 
+            background: #fff; 
+            transition: width 1s ease-in-out;
+        }
+        .quota-empty-msg {
+            color: #ff5252; 
+            text-align: center; 
+            font-weight: bold; 
+            margin-top: 15px; 
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-fixed-layer"></div>
+    <nav class="navbar">
+        <a href="/" class="logo">P  D  K</a>
+    </nav>
+
+    <div class="checkout-container" style="margin-top: 80px;">
+        <div class="trial-banner">
+            <h2>Trial Collection</h2>
+            <p>試用品容量:洗髮精30ml,髮油5ml</p>
+        </div>
+
+        <div class="quota-box">
+            <div class="quota-header">
+                <span class="quota-title">限量倒數</span>
+                <span class="quota-text">剩餘 <span class="quota-number">{{ remaining_quota }}</span> / {{ total_quota }} 份</span>
+            </div>
+            
+            <div class="progress-track">
+                <div class="progress-fill" style="width: {{ progress_percent }}%;"></div>
+            </div>
+            
+            {% if remaining_quota <= 0 %}
+                <div class="quota-empty-msg">
+                    本次活動已全數發放完畢，感謝您的支持！
+                </div>
+            {% endif %}
+        </div>
+
+        <form id="trialForm" class="checkout-layout" action="/submit_trial_order" method="POST">
+            <div class="form-container">
+                <div class="form-section">
+                    <h3 class="form-title">1. 選擇試用品</h3>
+                    <div class="form-group">
+                        <select name="trial_product" class="form-input" required>
+                            <option value="" disabled selected>請選擇一款試用商品...</option>
+                            <option value="淨屑舒活洗髮精">淨屑舒活洗髮精</option>
+                            <option value="輕柔活力洗髮精">輕柔活力洗髮精</option>
+                            <option value="翅藻植翠洗髮精">翅藻植翠洗髮精</option>
+                            <option value="淨化控油調理洗髮精">淨化控油調理洗髮精</option>
+                            <option value="極致燙染修復洗髮精">極致燙染修復洗髮精</option>
+                            <option value="摩洛哥Q10精華修復液">摩洛哥Q10精華修復液</option>
+                            <option value="黃金堅果E油">黃金堅果E油</option>
+                            <option value="芳香質感精華乳">芳香質感精華乳</option>
+                        </select>
+                    </div>
+                    <a href="/quiz?from=trial" class="quiz-hint-btn">不知道怎麼選？點我進行頭皮檢測</a>
+                </div>
+
+                <div class="form-section">
+                    <h3 class="form-title">2. 顧客資料</h3>
+                    <div class="form-group">
+                        <label class="form-label">電子信箱 Email</label>
+                        <input type="email" name="email" class="form-input" required value="{{ current_user.email if current_user.is_authenticated and '@line.pdk.com' not in current_user.email else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">收件人姓名</label>
+                        <input type="text" name="name" class="form-input" required value="{{ current_user.real_name if current_user.is_authenticated and current_user.real_name and current_user.real_name != 'None' else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">手機號碼</label>
+                        <input type="tel" name="phone" class="form-input" maxlength="10" required value="{{ current_user.phone if current_user.is_authenticated and current_user.phone and current_user.phone != 'None' else '' }}">
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3 class="form-title">3. 送貨地點 (此活動僅限 7-11)</h3>
+                    <div class="form-group">
+                        <label class="form-label">取貨門市名稱 / 店號</label>
+                        <input type="text" name="store_name" class="form-input" placeholder="例如：711 台北旗艦店 (123456)" required value="{{ current_user.store_info if current_user.is_authenticated and current_user.store_info and current_user.store_info != 'None' else '' }}">
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3 class="form-title">4. 付款方式</h3>
+                    <div class="form-group">
+                        <select name="payment_method" class="form-input" required>
+                            <option value="linepay" selected>LINE Pay</option>
+                            <option value="atm">銀行轉帳 / 網銀</option>
+                            <option value="jiekou">街口支付</option>
+                        </select>
+                    </div>
+                    
+                    <div class="final-summary-box" style="margin-top: 20px;">
+                        <div class="summary-row">
+                            <span>商品體驗價</span>
+                            <span>NT$ 0</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>超商物流處理費</span>
+                            <span>NT$ 38</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>實付總額</span>
+                            <span style="font-family:'Times New Roman';">NT$ 38</span>
+                        </div>
+                    </div>
+                </div>
+
+                <input type="hidden" name="update_profile" value="yes">
+
+                <button type="submit" class="btn-place-order" style="width: 100%;">確認並結帳 NT$ 38</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

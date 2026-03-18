@@ -109,28 +109,6 @@
                             出貨後會再以 Email 通知，謝謝～
                         </p>
                     </div>
-                {% elif payment_method == 'cod' %}
-                    <div class="instruction-title">貨到付款須知</div>
-                    <p style="margin-bottom:15px; color:#aaa;">您的訂單已進入排程，我們將於 1-3 個工作天內為您安排出貨。</p>
-                    
-                    {% if order.shipping_method == 'store' %}
-                    <div class="bank-item-box" style="border-bottom: none;">
-                        <p style="margin-bottom:8px; line-height: 1.6;">
-                            商品抵達指定門市時，將會發送手機簡訊通知。<br>
-                            請於收到簡訊後的 <span class="cod-highlight">7日內</span>，攜帶 <span class="cod-highlight">現金</span> 至門市取件。
-                        </p>
-                    </div>
-                    {% else %}
-                    <div class="bank-item-box" style="border-bottom: none;">
-                        <p style="margin-bottom:8px; line-height: 1.6;">
-                            黑貓物流員在配達前會以電話與您聯繫，請保持手機暢通。<br>
-                            並請準備好 <span class="cod-highlight">相對應的現金</span> 交給物流員。
-                        </p>
-                    </div>
-                    {% endif %}
-                    
-                    <hr style="border:0; border-top:1px dashed #555; margin:15px 0;">
-                    <p style="font-size: 0.85rem; color: #888;">*溫馨提醒：為了保障雙方權益，若包裹無故拒收或逾期未領被退回，系統將會限制您未來使用貨到付款的權限喔！</p>
                 {% elif payment_method == 'atm' %}
                     <div class="instruction-title">匯款資訊</div>
                     <p style="margin-bottom:15px; color:#aaa;">請選擇以下任一銀行匯款：</p>
@@ -217,7 +195,7 @@
                         </div>
                     </div>
 
-                    <p>請在匯款時備註 訂單編號 or 姓名 or 電話 以便對帳。</p>
+                    <p>請在匯款時備註 訂單編號 or 姓名 or 電話 以便對帳</p>
                     <p>有任何問題再請聯絡官方帳號</p>
                     <p>商品將於款項確認後1-3天內出貨，謝謝~</p>
                 {% endif %}
