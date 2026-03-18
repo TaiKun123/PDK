@@ -64,11 +64,11 @@
 
             <div class="social-login-icons-container">
                     
-                <a href="{{ url_for('login_google') }}" class="social-icon-btn btn-google-icon" title="使用 Google 登入">
+                <a href="{{ url_for('login_google', next=request.args.get('next')) }}" class="social-icon-btn btn-google-icon" title="使用 Google 登入">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" style="width: 26px; height: 26px;">
                 </a>
 
-                <a href="{{ url_for('login_line') }}" class="social-icon-btn btn-line-icon" title="使用 LINE 登入">
+                <a href="{{ url_for('login_line', next=request.args.get('next')) }}" class="social-icon-btn btn-line-icon" title="使用 LINE 登入">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" alt="LINE Logo" style="width: 30px; height: 30px;">
                 </a>
                     
@@ -79,5 +79,17 @@
             </div>
         </div>
     </div>
+    <script>
+        // 偵測客人是不是用 LINE 內建瀏覽器打開網頁
+        var ua = navigator.userAgent || navigator.vendor || window.opera;
+        if (ua.indexOf("Line") > -1) {
+            // 如果是 LINE，且網址還沒有 openExternalBrowser=1，就自動幫他加上去並重新導向
+            if (window.location.search.indexOf("openExternalBrowser=1") === -1) {
+                var currentUrl = window.location.href;
+                var separator = currentUrl.indexOf('?') > -1 ? '&' : '?';
+                window.location.href = currentUrl + separator + 'openExternalBrowser=1';
+            }
+        }
+    </script>
 </body>
 </html>
