@@ -1828,9 +1828,9 @@ def authorize_google():
         
         login_user(new_user)
         flash('Google 登入成功！歡迎加入 P.D.K', 'success')
-        next_page = session.pop('next_url', None) # 拿出來的同時清空暫存
-        if next_page:
-            return redirect(next_page)
+    next_page = session.pop('next_url', None) # 拿出來的同時清空暫存
+    if next_page:
+        return redirect(next_page)
     # 3. 登入成功後，把客人導向首頁或會員中心
     return redirect(url_for('home')) # 假設你的會員頁面路由叫做 member_profile，如果不對請改成對應的名稱
 
@@ -1863,7 +1863,6 @@ def login_line():
     return redirect(line_auth_url)
 
 @app.route('/login/line/callback')
-
 def authorize_line():
     error = request.args.get('error')
     if error:
@@ -1945,9 +1944,9 @@ def authorize_line():
         login_user(new_user)
         flash('LINE 登入成功！歡迎加入 P.D.K', 'success')
         
-        next_page = session.pop('next_url', None) # 拿出來的同時清空暫存
-        if next_page:
-            return redirect(next_page)
+    next_page = session.pop('next_url', None) # 拿出來的同時清空暫存
+    if next_page:
+        return redirect(next_page)
         
     return redirect(url_for('home'))
 
