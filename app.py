@@ -688,9 +688,13 @@ def submit_trial_order():
         phone = request.form.get('phone')
         store_name = request.form.get('store_name')
         payment_method = request.form.get('payment_method')
-        selected_product = request.form.get('trial_product') # 抓取選擇的商品
+        
+        # ★★★ 修改：分別抓取洗髮精與護髮油，並組合成字串 ★★★
+        trial_shampoo = request.form.get('trial_shampoo') 
+        trial_oil = request.form.get('trial_oil')
+        selected_product = f"{trial_shampoo} ＋ {trial_oil}" 
+        
         update_profile = request.form.get('update_profile')
-
         # 智慧回填會員資料
         if not current_user.real_name or update_profile == 'yes':
             current_user.real_name = name

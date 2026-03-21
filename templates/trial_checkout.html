@@ -111,21 +111,31 @@
         <form id="trialForm" class="checkout-layout" action="/submit_trial_order" method="POST">
             <div class="form-container">
                 <div class="form-section">
-                    <h3 class="form-title">1. 選擇試用品</h3>
-                    <div class="form-group">
-                        <select name="trial_product" class="form-input" required>
-                            <option value="" disabled selected>請選擇一款試用商品...</option>
+                    <h3 class="form-title">1. 選擇專屬體驗組合</h3>
+                    
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label class="form-label" style="color: #fff; font-weight: bold;">步驟一：選擇洗髮精 (五選一)</label>
+                        <select name="trial_shampoo" class="form-input" required>
+                            <option value="" disabled selected>請選擇一款洗髮精</option>
                             <option value="淨屑舒活洗髮精">淨屑舒活洗髮精</option>
                             <option value="輕柔活力洗髮精">輕柔活力洗髮精</option>
                             <option value="翅藻植翠洗髮精">翅藻植翠洗髮精</option>
                             <option value="淨化控油調理洗髮精">淨化控油調理洗髮精</option>
                             <option value="極致燙染修復洗髮精">極致燙染修復洗髮精</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" style="color: #fff; font-weight: bold;">步驟二：選擇免沖洗護髮 (三選一)</label>
+                        <select name="trial_oil" class="form-input" required>
+                            <option value="" disabled selected>請選擇一款護髮保養</option>
                             <option value="摩洛哥Q10精華修復液">摩洛哥Q10精華修復液</option>
                             <option value="黃金堅果E油">黃金堅果E油</option>
                             <option value="芳香質感精華乳">芳香質感精華乳</option>
                         </select>
                     </div>
-                    <a href="/quiz?from=trial" class="quiz-hint-btn">不知道怎麼選？點我進行頭皮檢測</a>
+                    
+                    <a href="/quiz?from=trial" class="quiz-hint-btn">運算自己的命定組合</a>
                 </div>
 
                 <div class="form-section">
