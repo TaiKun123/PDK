@@ -8,40 +8,57 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* --- 鎖死整個頁面的滾動，讓內部自己滾 --- */
-        body {
-            overflow: hidden; 
-            height: 100dvh; /* 完美適配手機瀏覽器高度 */
-            display: flex;
-            flex-direction: column;
+        /* --- 1. 強制鎖死底層，絕對不允許頁面上下滑動 --- */
+        html, body {
+            overflow: hidden !important; 
+            height: 100% !important; 
+            width: 100%;
+            position: fixed; /* 釘死畫面，防止 iOS 彈性滑動 */
+            top: 0; left: 0;
             background-color: transparent;
+            margin: 0; padding: 0;
         }
 
-        /* --- 聊天室主容器 --- */
+        /* --- 2. 聊天室主容器：釘在 Navbar 下方，直達螢幕最底 --- */
         .chat-container {
-            margin-top: 80px; /* 閃開 Navbar */
-            flex: 1; /* 佔滿剩餘空間 */
-            display: flex; 
-            flex-direction: column;
+            position: fixed;
+            top: 80px; /* 剛好接在 Navbar 下面 */
+            bottom: 0; /* 貼死螢幕底部 */
+            left: 50%;
+            transform: translateX(-50%);
             width: 100%;
-            max-width: 800px; /* 電腦版維持置中寬度 */
-            margin-left: auto; margin-right: auto;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
             background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(10px);
             border-left: 1px solid rgba(255,255,255,0.1);
             border-right: 1px solid rgba(255,255,255,0.1);
-            position: relative;
+            z-index: 10;
         }
 
-        /* --- 聊天訊息區 (唯一可以滾動的地方) --- */
+        /* --- 3. 聊天訊息區 (全畫面唯一可以滾動的地方) --- */
         .chat-box {
-            flex: 1; 
-            padding: 20px; 
-            overflow-y: auto; 
+            flex: 1; /* 撐滿中間所有剩餘空間 */
+            overflow-y: auto; /* 允許上下滾動 */
+            -webkit-overflow-scrolling: touch; /* iOS 流暢滾動 */
+            padding: 20px 20px 30px 20px; 
             display: flex; 
             flex-direction: column; 
-            gap: 20px; /* 訊息之間的間距 */
+            gap: 20px;
             scroll-behavior: smooth;
+        }
+
+        /* --- 4. 底部輸入區 (死死釘在容器最底下) --- */
+        .chat-input-area {
+            flex-shrink: 0; /* 絕對不允許被擠壓變形 */
+            display: flex; align-items: center; gap: 12px;
+            padding: 15px 20px;
+            /* 針對 iPhone 底部橫線的安全距離修正 */
+            padding-bottom: calc(15px + env(safe-area-inset-bottom)); 
+            background: rgba(0,0,0,0.9);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            width: 100%;
         }
 
         /* --- 訊息氣泡樣式 --- */
@@ -71,21 +88,13 @@
         /* --- 準備發送的圖片預覽 --- */
         #previewContainer {
             display: none; padding: 10px 15px; background: rgba(0,0,0,0.8); border-top: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
         }
         .preview-wrapper { position: relative; display: inline-block; }
         #imagePreview { max-height: 80px; border-radius: 4px; border: 1px solid #555; }
         .remove-img-btn { position: absolute; top: -8px; right: -8px; background: #ff4444; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
-        /* --- 底部輸入區 (完美對齊) --- */
-        .chat-input-area {
-            display: flex; align-items: center; gap: 12px;
-            padding: 15px 20px;
-            background: rgba(0,0,0,0.9);
-            border-top: 1px solid rgba(255,255,255,0.1);
-            flex-shrink: 0; /* 防止被擠壓 */
-        }
-
-        /* 統一高度 45px */
+        /* 輸入框元件統一對齊 */
         .img-upload-label {
             height: 45px; width: 45px; display: flex; align-items: center; justify-content: center;
             cursor: pointer; color: #fff; font-size: 1.3rem; background: rgba(255,255,255,0.1); border-radius: 4px; transition: 0.3s; margin: 0;
@@ -169,7 +178,6 @@
     {% include 'includes/quick_view_modal.html' ignore missing %}
 
     <script>
-        // 從後端接收商品資料庫
         const DB_PRODUCTS = {{ products_json | safe if products_json else '{}' }};
         
         let chatHistory = [];
@@ -178,7 +186,10 @@
         const chatInput = document.getElementById('chatInput');
         const typingIndicator = document.getElementById('typingIndicator');
 
-        // 支援 Enter 鍵發送
+        function scrollToBottom() {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
         chatInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -186,7 +197,11 @@
             }
         });
 
-        // 圖片預覽處理
+        // 解決手機點擊輸入框時畫面被推高的問題
+        chatInput.addEventListener('focus', function() {
+            setTimeout(scrollToBottom, 100);
+        });
+
         function previewImage(event) {
             const file = event.target.files[0];
             if (file) {
@@ -195,8 +210,8 @@
                     currentBase64Image = e.target.result;
                     document.getElementById('imagePreview').src = currentBase64Image;
                     document.getElementById('previewContainer').style.display = 'block';
-                    // 上傳圖片後讓輸入框自動 focus
                     chatInput.focus();
+                    scrollToBottom();
                 }
                 reader.readAsDataURL(file);
             }
@@ -208,32 +223,26 @@
             document.getElementById('previewContainer').style.display = 'none';
         }
 
-        // 解析 AI 暗號並生成商品卡片
         function parseAndRenderAI(text) {
-            // 尋找 [RECOMMEND: id1, id2] 格式的字串
             const regex = /\[RECOMMEND:\s*([^\]]+)\]/g;
             let match;
             let productIds = [];
             let cleanText = text;
 
-            // 抓出所有 ID，並把暗號從純文字中消除
             while ((match = regex.exec(text)) !== null) {
                 let ids = match[1].split(',').map(id => id.trim());
                 productIds.push(...ids);
                 cleanText = cleanText.replace(match[0], ''); 
             }
 
-            // 處理換行符號
             let htmlContent = cleanText.replace(/\n/g, '<br>');
 
-            // 如果有抓到商品 ID，就動態生成卡片 HTML
             if (productIds.length > 0) {
                 htmlContent += `<div class="ai-recommendations"><div style="font-size:0.85rem; color:#aaa; margin-bottom:10px;">為您搭配的 P.D.K 命定配方：</div>`;
                 
                 productIds.forEach(id => {
                     const product = DB_PRODUCTS[id];
                     if (product) {
-                        // 處理單引號避免 onclick 報錯
                         let safeDesc = (product.description || '').replace(/\n/g, '').replace(/\r/g, '').replace(/'/g, "\\'");
                         
                         htmlContent += `
@@ -259,10 +268,8 @@
             
             let finalHtml = '';
             if (sender === 'ai') {
-                // 如果是 AI 傳的，就丟去給過濾器檢查有沒有商品暗號
                 finalHtml = parseAndRenderAI(text);
             } else {
-                // 如果是客人傳的，就直接顯示文字跟圖片
                 finalHtml = text.replace(/\n/g, '<br>');
                 if (imgBase64) {
                     finalHtml += `<img src="${imgBase64}" class="msg-image-preview">`;
@@ -272,10 +279,9 @@
             msgRow.innerHTML = `<div class="msg-bubble">${finalHtml}</div>`;
             chatBox.appendChild(msgRow);
             
-            // 強制捲動到底部
-            setTimeout(() => { chatBox.scrollTop = chatBox.scrollHeight; }, 50);
+            // 使用 setTimeout 確保 DOM 渲染後再滾動
+            setTimeout(scrollToBottom, 50);
             
-            // 存入歷史紀錄給 AI 大腦
             chatHistory.push({ sender: sender, text: text });
         }
 
@@ -285,18 +291,14 @@
             
             if (!text && !img) return;
 
-            // 1. 顯示客人的訊息
             appendMessage('user', text, img);
             
-            // 2. 清空輸入框與圖片
             chatInput.value = '';
             removeImage();
 
-            // 3. 顯示 AI 正在思考
             typingIndicator.style.display = 'block';
-            chatBox.scrollTop = chatBox.scrollHeight;
+            scrollToBottom();
 
-            // 4. 打 API 給後端
             try {
                 const response = await fetch('/api/ai_chat', {
                     method: 'POST',
