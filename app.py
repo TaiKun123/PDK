@@ -681,10 +681,10 @@ def api_ai_chat():
         print(f"你的金鑰支援以下模型: {available_models}")
 
         # 2. 自動配對 (尋找包含 1.5-flash 的模型)
-        target_model = "gemini-1.5-flash" # 預設底線
+        target_model = "gemini-2.5-flash" # 預設使用 Log 中確認支援的新版
         for m in available_models:
-            if '1.5-flash' in m:
-                target_model = m.replace('models/', '') # 拔掉 models/ 前綴
+            if '2.5-flash' in m and 'lite' not in m and 'preview' not in m and 'image' not in m:
+                target_model = m.replace('models/', '')
                 break
 
         print(f"✅ 最終決定使用模型: {target_model}")
