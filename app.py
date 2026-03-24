@@ -20,6 +20,7 @@ import hmac
 import hashlib
 import base64
 import uuid
+import google.generativeai as genai
 
 app = Flask(__name__)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -611,7 +612,93 @@ def quiz_page():
             'description': p.description or ""  # ★★★ 新增：把資料庫的商品描述抓出來
         }
     return render_template('quiz.html', products_json=json.dumps(product_dict))
+# ==========================================
+# ★ P.D.K AI 智能諮詢師 (Gemini 串接)
+# ==========================================
+# 設定 API Key
+gemini_api_key = os.environ.get('GEMINI_API_KEY')
+if gemini_api_key:
+    genai.configure(api_key=gemini_api_key)
 
+# PDK AI 的最高指導原則 (System Prompt)
+PDK_SYSTEM_PROMPT = """
+你現在是台灣頂級沙龍品牌「P.D.K」的資深線上 AI 諮詢師。
+你的說話風格：俐落、專業、有經驗、不講客套話、直切重點。不要使用過多的表情符號，語氣像一位在沙龍裡為客人檢視頭皮的真實設計師。
+
+【最高指導原則】
+1. 保養邏輯：「先救頭皮，再修髮絲」。洗髮精針對頭皮狀況挑選，潤護產品針對髮絲受損程度挑選。
+2. 對話節奏：引導式問答。每次只問 1 到 2 個問題，不要一次問完所有事情。從「頭皮出油/敏感狀況」開始問起，接著問「染燙受損狀況」，最後問「日常吹整習慣(如使用電棒)」。
+3. 圖片分析：如果客人上傳了圖片，請像專業設計師一樣，先客觀描述你看到的髮況（例如：看起來髮尾有些分岔、頭皮有點泛紅），再給出建議。
+4. 最終推薦：在收集完足夠資訊後，請給出一段【髮況分析】，並給出明確的【命定配方】(1款洗髮精 + 1款護理素 + 1款免沖洗護髮/頭皮水)。
+
+【P.D.K 產品圖鑑與對應邏輯】
+- 洗髮精 (洗頭皮為主)：
+  1. 淨化控油調理洗髮精：極度出油、頭皮味重、下午就塌。
+  2. 輕柔活力洗髮精：一般出油、想要無重力蓬鬆感。
+  3. 淨屑舒活洗髮精：有頭皮屑、容易乾癢。
+  4. 翅藻植翠洗髮精：正常/偏乾頭皮、想要水感平衡。
+  5. 極致燙染修復洗髮精：剛漂髮、重度染燙受損 (這是特例，以救髮絲為主)。
+- 潤護乳 (修護髮絲)：
+  1. 極致燙染修復護理素：漂髮、重度受損、稻草髮。
+  2. 翅藻植翠極致乳：一般受損、未染燙的日常保養。
+- 免沖洗與頭皮保養：
+  1. 全方位頭皮調理液(頭皮水)：頭皮發炎、紅癢、想強健髮根。
+  2. 彈力亮澤護色修護液(水/噴霧狀)：常用電棒/離子夾、需要抗熱防護、剛漂髮。
+  3. 芳香質感精華乳(乳狀)：不喜歡油膩感、吹髮前保濕打底。
+  4. 黃金堅果E油(油狀)：極度乾枯、分岔嚴重、需要強烈光澤。
+  5. 摩洛哥Q10精華修復液(油/精華狀)：易斷裂、脆弱、細軟髮、容易打結。
+
+切記：絕對不要推薦造型用的「髮蠟」，我們專注於理療與保養。如果客人一開始只說「你好」，請主動詢問他的頭皮出油狀況。
+"""
+
+@app.route('/ai_consult')
+@login_required
+def ai_consult():
+    return render_template('ai_test.html')
+
+@app.route('/api/ai_chat', methods=['POST'])
+@login_required
+def api_ai_chat():
+    if not gemini_api_key:
+        return jsonify({'success': False, 'message': '系統未設定 AI 金鑰，請聯絡管理員。'})
+    
+    data = request.get_json()
+    user_msg = data.get('message', '')
+    image_base64 = data.get('image', None) # 接收圖片
+    chat_history = data.get('history', []) # 接收過去的對話紀錄
+    
+    try:
+        # 使用 Gemini 1.5 Flash 模型 (速度快、支援看圖)
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            system_instruction=PDK_SYSTEM_PROMPT
+        )
+        
+        # 整理歷史紀錄格式給 Gemini
+        formatted_history = []
+        for msg in chat_history:
+            role = "user" if msg['sender'] == 'user' else "model"
+            formatted_history.append({"role": role, "parts": [msg['text']]})
+            
+        chat = model.start_chat(history=formatted_history)
+        
+        # 處理客人傳來的訊息 (判斷有沒有附照片)
+        if image_base64:
+            # 將 Base64 轉回圖片物件
+            image_data = base64.b64decode(image_base64.split(',')[1])
+            image_part = {
+                "mime_type": "image/jpeg",
+                "data": image_data
+            }
+            response = chat.send_message([user_msg, image_part])
+        else:
+            response = chat.send_message(user_msg)
+            
+        return jsonify({'success': True, 'reply': response.text})
+        
+    except Exception as e:
+        print(f"AI 錯誤: {e}")
+        return jsonify({'success': False, 'message': '抱歉，設計師目前在忙，請稍後再試！'})
 @app.route('/category/<string:cat_name>')
 def category_page(cat_name):
     category_data = {
@@ -2951,3 +3038,4 @@ with app.app_context():
 # 2. 本機開發時的啟動入口
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+    
