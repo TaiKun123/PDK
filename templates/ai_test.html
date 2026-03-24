@@ -3,104 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 智能理療師 | P.D.K</title>
+    <title>P.D.K CONSULT | 智能理療師</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        /* --- 鎖死整個頁面的滾動，讓內部自己滾 --- */
+        body {
+            overflow: hidden; 
+            height: 100dvh; /* 完美適配手機瀏覽器高度 */
+            display: flex;
+            flex-direction: column;
+            background-color: transparent;
+        }
+
+        /* --- 聊天室主容器 --- */
         .chat-container {
-            max-width: 600px; margin: 80px auto 30px; 
-            height: calc(100vh - 120px);
-            display: flex; flex-direction: column;
+            margin-top: 80px; /* 閃開 Navbar */
+            flex: 1; /* 佔滿剩餘空間 */
+            display: flex; 
+            flex-direction: column;
+            width: 100%;
+            max-width: 800px; /* 電腦版維持置中寬度 */
+            margin-left: auto; margin-right: auto;
             background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px; position: relative; z-index: 10;
+            border-left: 1px solid rgba(255,255,255,0.1);
+            border-right: 1px solid rgba(255,255,255,0.1);
+            position: relative;
         }
 
-        .chat-header {
-            padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .chat-title {
-            font-family: 'Playfair Display', serif; font-size: 1.5rem; color: #fff; letter-spacing: 3px; margin: 0;
-        }
-        .chat-subtitle { font-size: 0.8rem; color: #aaa; letter-spacing: 1px; margin-top: 5px; }
-
+        /* --- 聊天訊息區 (唯一可以滾動的地方) --- */
         .chat-box {
-            flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px;
+            flex: 1; 
+            padding: 20px; 
+            overflow-y: auto; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; /* 訊息之間的間距 */
+            scroll-behavior: smooth;
         }
 
+        /* --- 訊息氣泡樣式 --- */
         .msg-row { display: flex; width: 100%; }
         .msg-row.ai { justify-content: flex-start; }
         .msg-row.user { justify-content: flex-end; }
 
         .msg-bubble {
-            max-width: 80%; padding: 12px 16px; border-radius: 8px; line-height: 1.6; font-size: 0.95rem; word-wrap: break-word;
+            max-width: 85%; padding: 15px 18px; border-radius: 8px; line-height: 1.6; font-size: 0.95rem; word-wrap: break-word;
         }
         .msg-row.ai .msg-bubble {
             background: rgba(255,255,255,0.1); color: #fff; border-top-left-radius: 0;
+            border: 1px solid rgba(255,255,255,0.05);
         }
         .msg-row.user .msg-bubble {
             background: #fff; color: #000; border-top-right-radius: 0;
         }
-        .msg-image-preview { max-width: 100%; border-radius: 4px; margin-top: 8px; display: block; }
+        .msg-image-preview { max-width: 100%; max-height: 250px; border-radius: 4px; margin-top: 8px; display: block; object-fit: cover; }
 
-        .chat-input-area {
-            padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; align-items: flex-end; gap: 10px; background: rgba(0,0,0,0.3);
-        }
-
-        .img-upload-label {
-            cursor: pointer; color: #fff; font-size: 1.2rem; padding: 10px; transition: 0.3s; display: flex; align-items: center; justify-content: center;
-        }
-        .img-upload-label:hover { color: #aaa; }
-        #fileInput { display: none; }
-
-        .chat-input {
-            flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 12px 15px; border-radius: 4px; font-size: 1rem; resize: none; overflow: hidden; min-height: 45px; max-height: 120px; outline: none;
-        }
-        .chat-input:focus { border-color: #fff; }
-
-        .send-btn {
-            background: #fff; color: #000; border: none; padding: 12px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.3s; letter-spacing: 1px;
-        }
-        .send-btn:hover { background: #ccc; }
-
-        /* 正在輸入中的動畫 */
-        .typing-indicator { display: none; color: #aaa; font-size: 0.9rem; padding-left: 10px; margin-bottom: 10px; }
+        /* --- 正在輸入中的動畫 --- */
+        .typing-indicator { display: none; color: #aaa; font-size: 0.9rem; padding-left: 20px; margin-bottom: 10px; }
         .typing-indicator span { animation: blink 1.4s infinite both; }
         .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
         .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
         @keyframes blink { 0% { opacity: 0.2; } 20% { opacity: 1; } 100% { opacity: 0.2; } }
-        
-        #previewContainer { display: none; margin-bottom: 10px; position: relative; width: fit-content; }
-        #imagePreview { max-height: 100px; border-radius: 4px; border: 1px solid #fff; }
-        .remove-img-btn { position: absolute; top: -8px; right: -8px; background: red; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        /* --- 準備發送的圖片預覽 --- */
+        #previewContainer {
+            display: none; padding: 10px 15px; background: rgba(0,0,0,0.8); border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .preview-wrapper { position: relative; display: inline-block; }
+        #imagePreview { max-height: 80px; border-radius: 4px; border: 1px solid #555; }
+        .remove-img-btn { position: absolute; top: -8px; right: -8px; background: #ff4444; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        /* --- 底部輸入區 (完美對齊) --- */
+        .chat-input-area {
+            display: flex; align-items: center; gap: 12px;
+            padding: 15px 20px;
+            background: rgba(0,0,0,0.9);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0; /* 防止被擠壓 */
+        }
+
+        /* 統一高度 45px */
+        .img-upload-label {
+            height: 45px; width: 45px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: #fff; font-size: 1.3rem; background: rgba(255,255,255,0.1); border-radius: 4px; transition: 0.3s; margin: 0;
+        }
+        .img-upload-label:hover { background: rgba(255,255,255,0.2); }
+        #fileInput { display: none; }
+
+        .chat-input {
+            flex: 1; height: 45px; padding: 12px 15px; margin: 0;
+            background: transparent; border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 4px; font-size: 1rem; outline: none; transition: 0.3s;
+        }
+        .chat-input:focus { border-color: #fff; }
+
+        .send-btn {
+            height: 45px; padding: 0 25px; margin: 0;
+            background: #fff; color: #000; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.3s; letter-spacing: 1px; display: flex; align-items: center; justify-content: center;
+        }
+        .send-btn:hover { background: #ccc; }
+
+        /* --- 動態生成的商品卡片 UI --- */
+        .ai-recommendations { margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 15px; }
+        .ai-product-card {
+            display: flex; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px; padding: 12px; margin-bottom: 12px; gap: 15px; align-items: center;
+            transition: background 0.3s;
+        }
+        .ai-product-card:hover { background: rgba(255,255,255,0.1); }
+        .ai-product-img { width: 60px; height: 80px; background-size: cover; background-position: center; border-radius: 4px; background-color: #222; flex-shrink: 0; }
+        .ai-product-info { flex: 1; text-align: left; }
+        .ai-product-name { color: #fff; font-weight: bold; font-size: 1rem; margin-bottom: 4px; letter-spacing: 1px; }
+        .ai-product-price { color: #aaa; font-family: 'Times New Roman'; font-size: 0.95rem; }
+        .ai-cart-btn {
+            background: transparent; color: #fff; border: 1px solid #fff; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; letter-spacing: 1px; transition: 0.3s; flex-shrink: 0;
+        }
+        .ai-cart-btn:hover { background: #fff; color: #000; }
     </style>
 </head>
 <body>
     <div class="bg-fixed-layer"></div>
+    
     <nav class="navbar">
+        <div class="menu-toggle" onclick="openNav()">&#9776;</div>
         <a href="/" class="logo">P  D  K</a>
+        <div class="cart-wrapper" onclick="toggleCart()">
+            <svg class="cart-icon-svg" viewBox="0 0 24 24"><path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/><circle cx="9" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/></svg>
+            <span class="cart-badge">0</span>
+        </div>
     </nav>
 
-    <div class="chat-container">
-        <div class="chat-header">
-            <h1 class="chat-title">P.D.K CONSULT</h1>
-            <div class="chat-subtitle">資深 AI 理療師在線為您診斷</div>
-        </div>
+    {% include 'includes/sidebar.html' %}
+    {% include 'includes/cart_drawer.html' %}
 
+    <div class="chat-container">
         <div class="chat-box" id="chatBox">
             <div class="msg-row ai">
                 <div class="msg-bubble">
-                    哈囉！我是 P.D.K 的線上理療師。<br>想要擁有好髮質，得從了解頭皮開始。<br>平常到了下午，你的頭皮通常是什麼狀況呢？（例如：很容易出油、有頭皮屑、有點緊繃...等），如果不知道怎麼形容，也可以直接拍張頭皮或髮尾的照片傳給我喔！
+                    歡迎來到 P.D.K 線上理療室。<br><br>我們堅信「洗髮精照顧頭皮，保養品修護髮絲」。為了給您最精準的配方，請先告訴我：<br><b>您的頭皮到了下午，通常是什麼狀況呢？</b><br><span style="font-size:0.85rem; color:#aaa;">（例如：很容易出油、有頭皮屑、有點緊繃...等。也可以直接點擊下方相機，拍張頭皮或髮尾的照片傳給我喔！）</span>
                 </div>
             </div>
         </div>
         
-        <div class="typing-indicator" id="typingIndicator">設計師正在輸入中 <span>.</span><span>.</span><span>.</span></div>
+        <div class="typing-indicator" id="typingIndicator">理療師正在分析中 <span>.</span><span>.</span><span>.</span></div>
 
-        <div style="padding: 0 15px;">
-            <div id="previewContainer">
+        <div id="previewContainer">
+            <div class="preview-wrapper">
                 <img id="imagePreview" src="">
                 <button class="remove-img-btn" onclick="removeImage()"><i class="fas fa-times"></i></button>
             </div>
@@ -111,32 +161,32 @@
                 <i class="fas fa-camera"></i>
                 <input type="file" id="fileInput" accept="image/*" onchange="previewImage(event)">
             </label>
-            <textarea id="chatInput" class="chat-input" placeholder="輸入您的狀況..." rows="1"></textarea>
+            <input type="text" id="chatInput" class="chat-input" placeholder="輸入您的狀況..." autocomplete="off">
             <button class="send-btn" onclick="sendMessage()">發送</button>
         </div>
     </div>
 
+    {% include 'includes/quick_view_modal.html' ignore missing %}
+
     <script>
+        // 從後端接收商品資料庫
+        const DB_PRODUCTS = {{ products_json | safe if products_json else '{}' }};
+        
         let chatHistory = [];
         let currentBase64Image = null;
         const chatBox = document.getElementById('chatBox');
         const chatInput = document.getElementById('chatInput');
         const typingIndicator = document.getElementById('typingIndicator');
 
-        // 自動調整輸入框高度
-        chatInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
-        });
-
-        // 支援 Enter 鍵發送 (Shift+Enter 換行)
+        // 支援 Enter 鍵發送
         chatInput.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === 'Enter') {
                 e.preventDefault();
                 sendMessage();
             }
         });
 
+        // 圖片預覽處理
         function previewImage(event) {
             const file = event.target.files[0];
             if (file) {
@@ -145,6 +195,8 @@
                     currentBase64Image = e.target.result;
                     document.getElementById('imagePreview').src = currentBase64Image;
                     document.getElementById('previewContainer').style.display = 'block';
+                    // 上傳圖片後讓輸入框自動 focus
+                    chatInput.focus();
                 }
                 reader.readAsDataURL(file);
             }
@@ -156,20 +208,74 @@
             document.getElementById('previewContainer').style.display = 'none';
         }
 
+        // 解析 AI 暗號並生成商品卡片
+        function parseAndRenderAI(text) {
+            // 尋找 [RECOMMEND: id1, id2] 格式的字串
+            const regex = /\[RECOMMEND:\s*([^\]]+)\]/g;
+            let match;
+            let productIds = [];
+            let cleanText = text;
+
+            // 抓出所有 ID，並把暗號從純文字中消除
+            while ((match = regex.exec(text)) !== null) {
+                let ids = match[1].split(',').map(id => id.trim());
+                productIds.push(...ids);
+                cleanText = cleanText.replace(match[0], ''); 
+            }
+
+            // 處理換行符號
+            let htmlContent = cleanText.replace(/\n/g, '<br>');
+
+            // 如果有抓到商品 ID，就動態生成卡片 HTML
+            if (productIds.length > 0) {
+                htmlContent += `<div class="ai-recommendations"><div style="font-size:0.85rem; color:#aaa; margin-bottom:10px;">為您搭配的 P.D.K 命定配方：</div>`;
+                
+                productIds.forEach(id => {
+                    const product = DB_PRODUCTS[id];
+                    if (product) {
+                        // 處理單引號避免 onclick 報錯
+                        let safeDesc = (product.description || '').replace(/\n/g, '').replace(/\r/g, '').replace(/'/g, "\\'");
+                        
+                        htmlContent += `
+                        <div class="ai-product-card">
+                            <div class="ai-product-img" style="background-image: url('${product.image}')"></div>
+                            <div class="ai-product-info">
+                                <div class="ai-product-name">${product.name}</div>
+                                <div class="ai-product-price">NT$ ${product.price}</div>
+                            </div>
+                            <button class="ai-cart-btn" onclick="openQuickView('${id}', '${product.name}', ${product.price}, '${safeDesc}', '${product.image}')">加入購物車</button>
+                        </div>
+                        `;
+                    }
+                });
+                htmlContent += `</div>`;
+            }
+            return htmlContent;
+        }
+
         function appendMessage(sender, text, imgBase64 = null) {
             const msgRow = document.createElement('div');
             msgRow.className = `msg-row ${sender}`;
             
-            let contentHtml = text.replace(/\n/g, '<br>');
-            if (imgBase64) {
-                contentHtml += `<img src="${imgBase64}" class="msg-image-preview">`;
+            let finalHtml = '';
+            if (sender === 'ai') {
+                // 如果是 AI 傳的，就丟去給過濾器檢查有沒有商品暗號
+                finalHtml = parseAndRenderAI(text);
+            } else {
+                // 如果是客人傳的，就直接顯示文字跟圖片
+                finalHtml = text.replace(/\n/g, '<br>');
+                if (imgBase64) {
+                    finalHtml += `<img src="${imgBase64}" class="msg-image-preview">`;
+                }
             }
 
-            msgRow.innerHTML = `<div class="msg-bubble">${contentHtml}</div>`;
+            msgRow.innerHTML = `<div class="msg-bubble">${finalHtml}</div>`;
             chatBox.appendChild(msgRow);
-            chatBox.scrollTop = chatBox.scrollHeight;
             
-            // 存入歷史紀錄 (只存純文字，不存圖片 Base64 避免佔用太大記憶體)
+            // 強制捲動到底部
+            setTimeout(() => { chatBox.scrollTop = chatBox.scrollHeight; }, 50);
+            
+            // 存入歷史紀錄給 AI 大腦
             chatHistory.push({ sender: sender, text: text });
         }
 
@@ -184,7 +290,6 @@
             
             // 2. 清空輸入框與圖片
             chatInput.value = '';
-            chatInput.style.height = 'auto';
             removeImage();
 
             // 3. 顯示 AI 正在思考
@@ -199,7 +304,7 @@
                     body: JSON.stringify({
                         message: text,
                         image: img,
-                        history: chatHistory.slice(-6) // 只傳最近6句話，避免 token 爆掉
+                        history: chatHistory.slice(-6) 
                     })
                 });
 
@@ -213,7 +318,7 @@
                 }
             } catch (error) {
                 typingIndicator.style.display = 'none';
-                appendMessage('ai', '⚠️ 網路連線異常，請重新整理後再試一次。');
+                appendMessage('ai', '⚠️ 網路連線異常，請稍後再試一次。');
             }
         }
     </script>
