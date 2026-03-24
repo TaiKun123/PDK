@@ -21,6 +21,8 @@ import hashlib
 import base64
 import uuid
 import google.generativeai as genai
+import io
+from PIL import Image
 
 app = Flask(__name__)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -668,13 +670,20 @@ def api_ai_chat():
     chat_history = data.get('history', []) # 接收過去的對話紀錄
     
     try:
-        # 使用 Gemini 1.5 Flash 模型 (速度快、支援看圖)
+        # 1. 智慧尋找可用的模型 (絕對不會再報 404 找不到)
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        target_model = "gemini-1.5-flash" # 預設底線
+        for m in available_models:
+            if '1.5-flash' in m:
+                target_model = m
+                break
+                
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash-latest",
+            model_name=target_model,
             system_instruction=PDK_SYSTEM_PROMPT
         )
         
-        # 整理歷史紀錄格式給 Gemini
+        # 2. 整理歷史紀錄
         formatted_history = []
         for msg in chat_history:
             role = "user" if msg['sender'] == 'user' else "model"
@@ -682,15 +691,11 @@ def api_ai_chat():
             
         chat = model.start_chat(history=formatted_history)
         
-        # 處理客人傳來的訊息 (判斷有沒有附照片)
+        # 3. 安全處理圖片 (使用 PIL Image 轉換，這是 Google 最喜歡的格式)
         if image_base64:
-            # 將 Base64 轉回圖片物件
             image_data = base64.b64decode(image_base64.split(',')[1])
-            image_part = {
-                "mime_type": "image/jpeg",
-                "data": image_data
-            }
-            response = chat.send_message([user_msg, image_part])
+            img = Image.open(io.BytesIO(image_data))
+            response = chat.send_message([user_msg, img])
         else:
             response = chat.send_message(user_msg)
             
