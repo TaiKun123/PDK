@@ -670,7 +670,7 @@ def api_ai_chat():
     try:
         # 使用 Gemini 1.5 Flash 模型 (速度快、支援看圖)
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
+            model_name="gemini-1.5-flash-latest",
             system_instruction=PDK_SYSTEM_PROMPT
         )
         

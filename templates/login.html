@@ -80,10 +80,10 @@
         </div>
     </div>
     <script>
-        // 偵測客人是不是用 LINE 內建瀏覽器打開網頁
+        // 升級版：同時偵測 LINE, Instagram, Facebook 內建瀏覽器
         var ua = navigator.userAgent || navigator.vendor || window.opera;
-        if (ua.indexOf("Line") > -1) {
-            // 如果是 LINE，且網址還沒有 openExternalBrowser=1，就自動幫他加上去並重新導向
+        if (ua.indexOf("Line") > -1 || ua.indexOf("Instagram") > -1 || ua.indexOf("FBAN") > -1 || ua.indexOf("FBAV") > -1) {
+            // 如果是在這些 APP 裡面，就強制加上魔法指令，跳轉到外部 Safari / Chrome
             if (window.location.search.indexOf("openExternalBrowser=1") === -1) {
                 var currentUrl = window.location.href;
                 var separator = currentUrl.indexOf('?') > -1 ? '&' : '?';
