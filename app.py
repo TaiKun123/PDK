@@ -666,24 +666,36 @@ def api_ai_chat():
     
     data = request.get_json()
     user_msg = data.get('message', '')
-    image_base64 = data.get('image', None) # 接收圖片
-    chat_history = data.get('history', []) # 接收過去的對話紀錄
+    image_base64 = data.get('image', None) 
+    chat_history = data.get('history', []) 
     
     try:
-        # 1. 智慧尋找可用的模型 (絕對不會再報 404 找不到)
+        # 在函式內安全引入所需套件
+        import io
+        import base64
+        from PIL import Image
+
+        # 1. 讓程式自動去問 Google：這把金鑰到底支援哪些模型？
+        print("--- 正在向 Google 查詢可用模型 ---")
         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        print(f"你的金鑰支援以下模型: {available_models}")
+
+        # 2. 自動配對 (尋找包含 1.5-flash 的模型)
         target_model = "gemini-1.5-flash" # 預設底線
         for m in available_models:
             if '1.5-flash' in m:
-                target_model = m
+                target_model = m.replace('models/', '') # 拔掉 models/ 前綴
                 break
-                
+
+        print(f"✅ 最終決定使用模型: {target_model}")
+
+        # 3. 啟動 AI
         model = genai.GenerativeModel(
             model_name=target_model,
             system_instruction=PDK_SYSTEM_PROMPT
         )
         
-        # 2. 整理歷史紀錄
+        # 4. 整理歷史紀錄
         formatted_history = []
         for msg in chat_history:
             role = "user" if msg['sender'] == 'user' else "model"
@@ -691,18 +703,22 @@ def api_ai_chat():
             
         chat = model.start_chat(history=formatted_history)
         
-        # 3. 安全處理圖片 (使用 PIL Image 轉換，這是 Google 最喜歡的格式)
+        # 5. 處理客人傳來的訊息 (含圖片處理)
         if image_base64:
+            print("--- 正在處理客人傳送的圖片 ---")
             image_data = base64.b64decode(image_base64.split(',')[1])
             img = Image.open(io.BytesIO(image_data))
             response = chat.send_message([user_msg, img])
         else:
             response = chat.send_message(user_msg)
             
+        print("✅ AI 回覆成功！")
         return jsonify({'success': True, 'reply': response.text})
         
     except Exception as e:
-        print(f"AI 錯誤: {e}")
+        import traceback
+        print("❌ AI 發生嚴重錯誤！詳細原因如下：")
+        traceback.print_exc() # 這行會把最底層的錯誤全印出來
         return jsonify({'success': False, 'message': '抱歉，設計師目前在忙，請稍後再試！'})
 @app.route('/category/<string:cat_name>')
 def category_page(cat_name):
