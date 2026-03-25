@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* --- 1. 強制鎖死底層 --- */
         html, body {
@@ -332,62 +333,67 @@
         }
 
         function parseAndRenderAI(text) {
-            const regex = /\[RECOMMEND:\s*([^\]]+)\]/g;
-            let match;
-            let productIds = [];
             let cleanText = text;
+            let productIds = [];
+            let chartData = null;
 
-            while ((match = regex.exec(text)) !== null) {
-                let ids = match[1].split(',').map(id => id.trim());
+            // 1. 抓取推薦商品暗號
+            const regexRecommend = /\[RECOMMEND:\s*([^\]]+)\]/g;
+            let matchRecommend;
+            while ((matchRecommend = regexRecommend.exec(cleanText)) !== null) {
+                let ids = matchRecommend[1].split(',').map(id => id.trim());
                 productIds.push(...ids);
-                cleanText = cleanText.replace(match[0], ''); 
+                cleanText = cleanText.replace(matchRecommend[0], ''); 
             }
 
-            // ★★★ 關鍵修改：Markdown 語法解析器 ★★★
+            // 2. 抓取雷達圖分數暗號
+            const regexChart = /\[CHART_SCORE:\s*([^\]]+)\]/g;
+            let matchChart;
+            while ((matchChart = regexChart.exec(cleanText)) !== null) {
+                chartData = matchChart[1].split(',').map(num => parseInt(num.trim()));
+                cleanText = cleanText.replace(matchChart[0], ''); 
+            }
+
+            // 3. 處理 Markdown 排版
             let htmlContent = cleanText
-                // 處理 H3 標題 (### 標題) -> 轉換為帶間距的粗體區塊
                 .replace(/###\s*([^\n]+)/g, '<div style="font-size: 1.1rem; color: #fff; font-weight: bold; margin: 15px 0 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">$1</div>')
-                // 處理粗體 (**文字**) -> 轉換為白色高亮文字
                 .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #fff; letter-spacing: 0.5px;">$1</strong>')
-                // 處理基本換行
                 .replace(/\n/g, '<br>');
-            
-            // 將過多連續的空白換行壓縮，避免對話框太空
             htmlContent = htmlContent.replace(/(<br>\s*){3,}/g, '<br><br>');
 
+            // 4. 如果有圖表資料，建立畫布容器 (稍後再畫)
+            if (chartData && chartData.length === 5) {
+                // 產生一個隨機 ID 避免多個圖表衝突
+                let chartId = 'radar_' + Math.random().toString(36).substr(2, 9);
+                htmlContent += `
+                    <div style="width: 100%; max-width: 280px; margin: 20px auto; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px;">
+                        <canvas id="${chartId}"></canvas>
+                    </div>
+                `;
+                // 延遲 100 毫秒，等 DOM 渲染完畢後呼叫畫圖函數
+                setTimeout(() => renderRadarChart(chartId, chartData), 100);
+            }
+
+            // 5. 渲染商品卡片
             if (productIds.length > 0) {
                 htmlContent += `<div class="ai-recommendations">`;
-                
                 productIds.forEach(id => {
                     const product = DB_PRODUCTS[id];
                     if (product) {
                         let fullDesc = product.description || '';
-                        let quickViewDesc = '';
-                        if (fullDesc.includes('======')) {
-                            let parts = fullDesc.split('======');
-                            quickViewDesc = parts.length > 1 ? parts[1] : parts[0]; 
-                        } else {
-                            quickViewDesc = fullDesc;
-                        }
-
+                        let quickViewDesc = fullDesc.includes('======') ? (fullDesc.split('======').length > 1 ? fullDesc.split('======')[1] : fullDesc.split('======')[0]) : fullDesc;
                         let safeDesc = quickViewDesc.replace(/\n/g, '').replace(/\r/g, '').replace(/'/g, "\\'");
                         let safeImg = product.image ? product.image : '';
 
                         htmlContent += `
                         <div class="ai-product-card" onclick="openQuickView('${id}', '${product.name}', ${product.price}, '${safeDesc}', '${safeImg}')">
-                            <div class="ai-product-img-box">
-                                <div class="ai-product-img" style="${safeImg ? `background-image: url('${safeImg}');` : ''}"></div>
-                            </div>
+                            <div class="ai-product-img-box"><div class="ai-product-img" style="${safeImg ? `background-image: url('${safeImg}');` : ''}"></div></div>
                             <div class="ai-product-content">
                                 <div class="ai-product-name">${product.name}</div>
                                 <div class="ai-product-bottom-row">
                                     <div class="ai-product-price">NT$ ${product.price}</div>
                                     <div class="ai-cart-btn-icon">
-                                        <svg viewBox="0 0 24 24">
-                                            <path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/>
-                                            <circle cx="9" cy="20" r="1.5" fill="currentColor" stroke="none"/>
-                                            <circle cx="17" cy="20" r="1.5" fill="currentColor" stroke="none"/>
-                                        </svg>
+                                        <svg viewBox="0 0 24 24"><path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/><circle cx="9" cy="20" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="20" r="1.5" fill="currentColor" stroke="none"/></svg>
                                     </div>
                                 </div>
                             </div>
@@ -399,7 +405,6 @@
             }
             return htmlContent;
         }
-
         function appendMessage(sender, text, imgBase64 = null) {
             const msgRow = document.createElement('div');
             msgRow.className = `msg-row ${sender}`;
@@ -459,6 +464,45 @@
                 typingIndicator.style.display = 'none';
                 appendMessage('ai', '⚠️ 網路連線異常，請稍後再試一次。');
             }
+        }
+
+        // 負責把雷達圖畫出來的函數
+        function renderRadarChart(canvasId, dataScores) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['頭皮清爽度', '頭皮防禦力', '柔順光澤度', '環境抗禦力', '髮絲強韌度'],
+                    datasets: [{
+                        label: '您的 P.D.K 髮況健康指數',
+                        data: dataScores,
+                        backgroundColor: 'rgba(255, 255, 255, 0.2)', // 充滿質感的半透明白
+                        borderColor: 'rgba(255, 255, 255, 0.8)',
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#fff',
+                        borderWidth: 1.5,
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            pointLabels: {
+                                color: '#ccc',
+                                font: { size: 11, family: 'Playfair Display, sans-serif' }
+                            },
+                            ticks: { display: false, min: 0, max: 100 } // 隱藏死板的分數刻度
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#fff', font: { size: 12 } } }
+                    }
+                }
+            });
         }
     </script>
 </body>
