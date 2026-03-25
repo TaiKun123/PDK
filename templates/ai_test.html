@@ -338,19 +338,18 @@
             let chartData = null;
 
             // 1. 抓取推薦商品暗號
-            const regexRecommend = /\[RECOMMEND:\s*([^\]]+)\]/g;
-            let matchRecommend;
-            while ((matchRecommend = regexRecommend.exec(cleanText)) !== null) {
-                let ids = matchRecommend[1].split(',').map(id => id.trim());
-                productIds.push(...ids);
-                cleanText = cleanText.replace(matchRecommend[0], ''); 
+            const regexChart = /\[CHART_SCORE:\s*([^\]]+)\]/g;
+            let matchChart;
+            while ((matchChart = regexChart.exec(cleanText)) !== null) {
+                chartData = matchChart[1].split(',').map(num => parseInt(num.trim()));
+                cleanText = cleanText.replace(matchChart[0], ''); 
             }
 
             // 2. 抓取雷達圖分數暗號
             const regexChart = /\[CHART_SCORE:\s*([^\]]+)\]/g;
             let matchChart;
             while ((matchChart = regexChart.exec(cleanText)) !== null) {
-                chartData = matchChart[1].split(',').map(num => parseInt(num.trim()));
+                chartData = chartData = matchChart[1].match(/\d+/g).map(Number);
                 cleanText = cleanText.replace(matchChart[0], ''); 
             }
 
