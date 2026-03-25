@@ -346,13 +346,22 @@
                 cleanText = cleanText.replace(matchRecommend[0], ''); 
             }
 
-            // 2. 抓取雷達圖分數暗號 (使用防呆，確保只抓數字)
+            // 2. 抓取雷達圖分數暗號 (使用強效防呆，確保只抓數字，並且防範破圖)
             const regexChart = /\[CHART_SCORE:\s*([^\]]+)\]/g;
             let matchChart;
             while ((matchChart = regexChart.exec(cleanText)) !== null) {
-                chartData = matchChart[1].match(/\d+/g).map(Number);
+                let extractedNumbers = matchChart[1].match(/\d+/g);
+                // 確保真的有抓到 5 個數字，才餵給圖表
+                if (extractedNumbers && extractedNumbers.length >= 5) {
+                    chartData = extractedNumbers.slice(0, 5).map(Number);
+                } else {
+                    chartData = [50, 50, 50, 50, 50]; // 萬一 AI 亂寫，預設給 50 分免得圖表崩塌
+                }
                 cleanText = cleanText.replace(matchChart[0], ''); 
             }
+
+            // ★ 順便把 AI 偷跑出來的 --- 或 === 分隔線強制消除，保持排版乾淨
+            cleanText = cleanText.replace(/[-=]{3,}/g, '');
 
             // 3. 處理 Markdown 排版
             let htmlContent = cleanText
@@ -474,7 +483,7 @@
             new Chart(ctx, {
                 type: 'radar',
                 data: {
-                    labels: ['頭皮清爽度', '頭皮防禦力', '柔順光澤度', '環境抗禦力', '髮絲強韌度'],
+                    labels: ['頭皮清爽度', '頭皮防禦力', '髮絲強韌度', '柔順光澤度', '環境抗禦力'],
                     datasets: [{
                         label: '您的 P.D.K 髮況健康指數',
                         data: dataScores,
