@@ -337,31 +337,41 @@
             let productIds = [];
             let chartData = null;
 
-            // 1. 抓取推薦商品暗號 (這段剛剛被你不小心蓋掉了，我幫你補回來)
+            // ★ 終極防護 1：徹底抹除外洩的 [THOUGHT] 與內心戲 (包含跨行)
+            cleanText = cleanText.replace(/\[THOUGHT[\s\S]*?\]/gi, '');
+            cleanText = cleanText.replace(/\[(接下來問|分析中|系統指令)[\s\S]*?\]/gi, '');
+
+            // ★ 終極防護 2：把 AI 偷跑出來的 --- 或 === 分隔線強制消除
+            cleanText = cleanText.replace(/[-=]{3,}/g, '');
+
+            // 1. 抓取推薦商品暗號
             const regexRecommend = /\[RECOMMEND:\s*([^\]]+)\]/g;
             let matchRecommend;
             while ((matchRecommend = regexRecommend.exec(cleanText)) !== null) {
                 let ids = matchRecommend[1].split(',').map(id => id.trim());
-                productIds.push(...ids);
+                
+                // ★ 終極防護 3：NONE 與空白過濾機制
+                ids.forEach(id => {
+                    if (id.toUpperCase() === 'NONE' || id === '') return; // 遇到 NONE 直接無效化，不加入渲染清單
+                    productIds.push(id);
+                });
+                
                 cleanText = cleanText.replace(matchRecommend[0], ''); 
             }
 
-            // 2. 抓取雷達圖分數暗號 (使用強效防呆，確保只抓數字，並且防範破圖)
+            // 2. 抓取雷達圖分數暗號
             const regexChart = /\[CHART_SCORE:\s*([^\]]+)\]/g;
             let matchChart;
             while ((matchChart = regexChart.exec(cleanText)) !== null) {
                 let extractedNumbers = matchChart[1].match(/\d+/g);
-                // 確保真的有抓到 5 個數字，才餵給圖表
                 if (extractedNumbers && extractedNumbers.length >= 5) {
-                    chartData = extractedNumbers.slice(0, 5).map(Number);
+                    // ★ 加固防呆：確保數字被鎖在 0~100 之間，防止圖表爆框
+                    chartData = extractedNumbers.slice(0, 5).map(num => Math.min(Math.max(Number(num), 0), 100));
                 } else {
-                    chartData = [50, 50, 50, 50, 50]; // 萬一 AI 亂寫，預設給 50 分免得圖表崩塌
+                    chartData = [50, 50, 50, 50, 50]; // 預設防崩塌
                 }
                 cleanText = cleanText.replace(matchChart[0], ''); 
             }
-
-            // ★ 順便把 AI 偷跑出來的 --- 或 === 分隔線強制消除，保持排版乾淨
-            cleanText = cleanText.replace(/[-=]{3,}/g, '');
 
             // 3. 處理 Markdown 排版
             let htmlContent = cleanText
@@ -370,16 +380,14 @@
                 .replace(/\n/g, '<br>');
             htmlContent = htmlContent.replace(/(<br>\s*){3,}/g, '<br><br>');
 
-            // 4. 如果有圖表資料，建立畫布容器 (稍後再畫)
+            // 4. 建立雷達圖畫布
             if (chartData && chartData.length === 5) {
-                // 產生一個隨機 ID 避免多個圖表衝突
                 let chartId = 'radar_' + Math.random().toString(36).substr(2, 9);
                 htmlContent += `
                     <div style="width: 100%; max-width: 280px; margin: 20px auto; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px;">
                         <canvas id="${chartId}"></canvas>
                     </div>
                 `;
-                // 延遲 100 毫秒，等 DOM 渲染完畢後呼叫畫圖函數
                 setTimeout(() => renderRadarChart(chartId, chartData), 100);
             }
 
@@ -414,6 +422,7 @@
             }
             return htmlContent;
         }
+
         function appendMessage(sender, text, imgBase64 = null) {
             const msgRow = document.createElement('div');
             msgRow.className = `msg-row ${sender}`;
@@ -487,7 +496,7 @@
                     datasets: [{
                         label: '您的 P.D.K 髮況健康指數',
                         data: dataScores,
-                        backgroundColor: 'rgba(255, 255, 255, 0.2)', // 充滿質感的半透明白
+                        backgroundColor: 'rgba(255, 255, 255, 0.2)', 
                         borderColor: 'rgba(255, 255, 255, 0.8)',
                         pointBackgroundColor: '#fff',
                         pointBorderColor: '#fff',
@@ -504,7 +513,7 @@
                                 color: '#ccc',
                                 font: { size: 11, family: 'Playfair Display, sans-serif' }
                             },
-                            ticks: { display: false, min: 0, max: 100 } // 隱藏死板的分數刻度
+                            ticks: { display: false, min: 0, max: 100 } 
                         }
                     },
                     plugins: {
