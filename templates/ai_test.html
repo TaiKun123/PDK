@@ -359,16 +359,23 @@
                 cleanText = cleanText.replace(matchRecommend[0], ''); 
             }
 
-            // 2. 抓取雷達圖分數暗號
+            // 2. 抓取雷達圖分數暗號 (偵測診斷版)
             const regexChart = /\[CHART_SCORE:\s*([^\]]+)\]/g;
             let matchChart;
             while ((matchChart = regexChart.exec(cleanText)) !== null) {
+                // 【關鍵診斷】印出 AI 括號內到底寫了什麼
+                console.log("--- P.D.K 診斷報告 ---");
+                console.log("AI 輸出的原始內容串:", matchChart[1]);
+
                 let extractedNumbers = matchChart[1].match(/\d+/g);
+                console.log("正規表達式抓到的數字陣列:", extractedNumbers);
+
                 if (extractedNumbers && extractedNumbers.length >= 5) {
-                    // ★ 加固防呆：確保數字被鎖在 0~100 之間，防止圖表爆框
-                    chartData = extractedNumbers.slice(0, 5).map(num => Math.min(Math.max(Number(num), 0), 100));
+                    chartData = extractedNumbers.slice(0, 5).map(num => Number(num));
+                    console.log("最終餵給圖表的數據 (Index 3 就是光澤度):", chartData);
                 } else {
-                    chartData = [50, 50, 50, 50, 50]; // 預設防崩塌
+                    console.log("⚠ 數字數量不足 5 個，觸發備援機制");
+                    chartData = [50, 50, 50, 50, 50];
                 }
                 cleanText = cleanText.replace(matchChart[0], ''); 
             }
