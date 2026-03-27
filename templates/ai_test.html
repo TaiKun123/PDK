@@ -323,26 +323,17 @@
 
         function parseAndRenderAI(text) {
             let cleanText = text;
-            let productIds = [];
             let chartData = null;
 
+            // ★ 終極防護 1 & 2：抹除思考過程與分隔線
             cleanText = cleanText.replace(/\[THOUGHT[\s\S]*?\]/gi, '');
             cleanText = cleanText.replace(/\[(接下來問|分析中|系統指令)[\s\S]*?\]/gi, '');
             cleanText = cleanText.replace(/[-=]{3,}/g, '');
 
-            // 1. 抓取推薦商品暗號
-            const regexRecommend = /\[RECOMMEND:\s*([^\]]+)\]/g;
-            let matchRecommend;
-            while ((matchRecommend = regexRecommend.exec(cleanText)) !== null) {
-                let ids = matchRecommend[1].split(',').map(id => id.trim());
-                ids.forEach(id => {
-                    if (id.toUpperCase() === 'NONE' || id === '') return; 
-                    productIds.push(id);
-                });
-                cleanText = cleanText.replace(matchRecommend[0], ''); 
-            }
+            // ★ 隱藏整體的 RECOMMEND 暗號 (避免它印在畫面上，我們現在靠 [CARD] 標籤來畫卡片)
+            cleanText = cleanText.replace(/\[RECOMMEND:\s*([^\]]+)\]/g, '');
 
-            // 2. 抓取雷達圖分數暗號 (★ 強效防呆版：鎖死 40~100)
+            // ★ 抓取雷達圖分數暗號 (維持原樣，防呆鎖定 40~100)
             const regexChart = /\[CHART_SCORE:\s*([^\]]+)\]/g;
             let matchChart;
             while ((matchChart = regexChart.exec(cleanText)) !== null) {
@@ -350,8 +341,8 @@
                 if (extractedNumbers && extractedNumbers.length >= 5) {
                     chartData = extractedNumbers.slice(0, 5).map(num => {
                         let val = Number(num);
-                        if (isNaN(val) || val < 40) return 40; // 防圖表塌陷
-                        if (val > 100) return 100; // 防圖表爆框
+                        if (isNaN(val) || val < 40) return 40; 
+                        if (val > 100) return 100; 
                         return val;
                     });
                 } else {
@@ -360,14 +351,44 @@
                 cleanText = cleanText.replace(matchChart[0], ''); 
             }
 
-            // 3. 處理 Markdown 排版
+            // ★ 核心魔法：把文章裡的 [CARD: ID] 原地變身成商品卡片！
+            cleanText = cleanText.replace(/\[CARD:\s*([a-zA-Z0-9_]+)\]/gi, (match, id) => {
+                let cleanId = id.trim();
+                if (cleanId.toUpperCase() === 'NONE') return ''; // 遇到 NONE 就隱藏
+                const product = DB_PRODUCTS[cleanId];
+                if (product) {
+                    let fullDesc = product.description || '';
+                    let quickViewDesc = fullDesc.includes('======') ? (fullDesc.split('======').length > 1 ? fullDesc.split('======')[1] : fullDesc.split('======')[0]) : fullDesc;
+                    let safeDesc = quickViewDesc.replace(/\n/g, '').replace(/\r/g, '').replace(/'/g, "\\'");
+                    let safeImg = product.image ? product.image : '';
+
+                    // 回傳這張專屬卡片的 HTML，讓它直接穿插在文字中
+                    return `
+                    <div class="ai-product-card" style="margin-top: 15px; margin-bottom: 10px;" onclick="openQuickView('${cleanId}', '${product.name}', ${product.price}, '${safeDesc}', '${safeImg}')">
+                        <div class="ai-product-img-box"><div class="ai-product-img" style="${safeImg ? `background-image: url('${safeImg}');` : ''}"></div></div>
+                        <div class="ai-product-content">
+                            <div class="ai-product-name">${product.name}</div>
+                            <div class="ai-product-bottom-row">
+                                <div class="ai-product-price">NT$ ${product.price}</div>
+                                <div class="ai-cart-btn-icon">
+                                    <svg viewBox="0 0 24 24"><path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/><circle cx="9" cy="20" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="20" r="1.5" fill="currentColor" stroke="none"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                }
+                return ''; // 如果查無此商品 ID，就回傳空白
+            });
+
+            // 處理 Markdown 排版 (粗體、換行、標題)
             let htmlContent = cleanText
                 .replace(/###\s*([^\n]+)/g, '<div style="font-size: 1.1rem; color: #fff; font-weight: bold; margin: 15px 0 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">$1</div>')
                 .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #fff; letter-spacing: 0.5px;">$1</strong>')
                 .replace(/\n/g, '<br>');
             htmlContent = htmlContent.replace(/(<br>\s*){3,}/g, '<br><br>');
 
-            // 4. 建立雷達圖畫布
+            // 如果有雷達圖資料，把雷達圖加在整段對話的最下方 (通常是階段一時觸發)
             if (chartData && chartData.length === 5) {
                 let chartId = 'radar_' + Math.random().toString(36).substr(2, 9);
                 htmlContent += `
@@ -378,38 +399,8 @@
                 setTimeout(() => renderRadarChart(chartId, chartData), 100);
             }
 
-            // 5. 渲染商品卡片
-            if (productIds.length > 0) {
-                htmlContent += `<div class="ai-recommendations">`;
-                productIds.forEach(id => {
-                    const product = DB_PRODUCTS[id];
-                    if (product) {
-                        let fullDesc = product.description || '';
-                        let quickViewDesc = fullDesc.includes('======') ? (fullDesc.split('======').length > 1 ? fullDesc.split('======')[1] : fullDesc.split('======')[0]) : fullDesc;
-                        let safeDesc = quickViewDesc.replace(/\n/g, '').replace(/\r/g, '').replace(/'/g, "\\'");
-                        let safeImg = product.image ? product.image : '';
-
-                        htmlContent += `
-                        <div class="ai-product-card" onclick="openQuickView('${id}', '${product.name}', ${product.price}, '${safeDesc}', '${safeImg}')">
-                            <div class="ai-product-img-box"><div class="ai-product-img" style="${safeImg ? `background-image: url('${safeImg}');` : ''}"></div></div>
-                            <div class="ai-product-content">
-                                <div class="ai-product-name">${product.name}</div>
-                                <div class="ai-product-bottom-row">
-                                    <div class="ai-product-price">NT$ ${product.price}</div>
-                                    <div class="ai-cart-btn-icon">
-                                        <svg viewBox="0 0 24 24"><path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/><circle cx="9" cy="20" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="20" r="1.5" fill="currentColor" stroke="none"/></svg>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        `;
-                    }
-                });
-                htmlContent += `</div>`;
-            }
             return htmlContent;
         }
-
         // ★ 核心升級：加入 isRestore 參數，防止讀取紀錄時重複寫入
         function appendMessage(sender, text, imgBase64 = null, isRestore = false) {
             const msgRow = document.createElement('div');
