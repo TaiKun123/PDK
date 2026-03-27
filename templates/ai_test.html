@@ -146,27 +146,98 @@
         #imagePreview { max-height: 80px; border-radius: 8px; border: 1px solid #555; }
         .remove-img-btn { position: absolute; top: -8px; right: -8px; background: rgba(0,0,0,0.8); color: #fff; border: 1px solid #fff; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px;}
 
-        /* --- 動態生成的商品卡片 UI --- */
+        /* --- 動態生成的商品卡片 UI (依手繪稿重構) --- */
         .ai-recommendations { margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 18px; }
         
         .ai-product-card {
-            display: flex; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 12px; padding: 12px; margin-bottom: 15px; align-items: stretch; transition: background 0.3s, transform 0.2s; cursor: pointer;
+            display: flex; 
+            background: rgba(255,255,255,0.08); 
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px; 
+            padding: 10px; /* 縮小內距，讓卡片更精緻 */
+            margin-top: 15px; /* 卡片與上方文字的距離 */
+            margin-bottom: 0px; /* ★ 歸零：把與下方推薦理由的距離交給理由區塊控制 */
+            align-items: stretch; 
+            transition: background 0.3s, transform 0.2s; 
+            cursor: pointer;
         }
         .ai-product-card:active { transform: scale(0.98); }
-        .ai-product-img-box { width: 80px; flex-shrink: 0; margin-right: 15px; display: flex; align-items: center; }
-        .ai-product-img { width: 100%; aspect-ratio: 4/5; background-size: cover; background-position: center; border-radius: 6px; background-color: #222; }
-        .ai-product-content { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
-        .ai-product-name { color: #fff; font-weight: bold; font-size: 1.05rem; line-height: 1.3; letter-spacing: 1px; }
-        .ai-product-bottom-row { display: flex; justify-content: space-between; align-items: center; }
-        .ai-product-price { color: #ccc; font-family: 'Times New Roman', serif; font-size: 1.1rem; }
-        .ai-cart-btn-icon { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.3); width: 32px; height: 32px; border-radius: 50%; display: flex; justify-content: center; align-items: center; transition: all 0.3s; }
-        .ai-cart-btn-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; }
-        .ai-cart-btn-icon:hover, .ai-product-card:hover .ai-cart-btn-icon { background: #fff; color: #000; border-color: #fff; transform: scale(1.1); }
         
-        /* 隱藏的清除按鈕，方便開發測試用 */
-        .clear-chat-btn { position: absolute; top: 15px; right: 20px; color: #777; font-size: 0.8rem; cursor: pointer; background: none; border: none; }
-        .clear-chat-btn:hover { color: #fff; }
+        /* 紅色區塊：商品圖 */
+        .ai-product-img-box { 
+            width: 75px; 
+            flex-shrink: 0; 
+            margin-right: 12px; 
+            display: flex; 
+        }
+        .ai-product-img { 
+            width: 100%; 
+            aspect-ratio: 1 / 1; /* 改為正方形更貼近你的草圖 */
+            background-size: cover; 
+            background-position: center; 
+            border-radius: 8px; 
+            background-color: #222; 
+        }
+        
+        /* 內容主容器 */
+        .ai-product-content { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; /* ★ 上下撐開：標題置頂，價格按鈕置底 */
+            padding: 2px 0;
+        }
+        
+        /* 黃色區塊：商品名稱 */
+        .ai-product-name { 
+            color: #fff; 
+            font-weight: bold; 
+            font-size: 0.95rem; 
+            line-height: 1.3; 
+            letter-spacing: 0.5px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2; /* 避免名稱過長破壞版面 */
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        /* 底部橫列容器 */
+        .ai-product-bottom-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-end; /* 讓藍綠區塊底部對齊 */
+        }
+        
+        /* 藍色區塊：價格 */
+        .ai-product-price { 
+            color: #ddd; 
+            font-family: 'Times New Roman', serif; 
+            font-size: 1.05rem; 
+        }
+        
+        /* 綠色區塊：購物車按鈕 */
+        .ai-cart-btn-icon { 
+            background: rgba(255,255,255,0.15); 
+            color: #fff; 
+            width: 30px; 
+            height: 30px; 
+            border-radius: 50%; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            transition: all 0.3s; 
+        }
+        .ai-cart-btn-icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+        .ai-cart-btn-icon:hover, .ai-product-card:hover .ai-cart-btn-icon { background: #fff; color: #000; transform: scale(1.1); }
+
+        /* ★ 新增：推薦理由專屬區塊，徹底解決留白過多問題 */
+        .ai-recommend-reason {
+            margin-top: 6px;       /* 緊貼在卡片下方 */
+            margin-bottom: 20px;   /* 與下一張卡片保持呼吸空間 */
+            font-size: 0.95rem;
+            color: #ccc;
+            line-height: 1.6;
+        }
     </style>
 </head>
 <body>
@@ -349,7 +420,7 @@
                 cleanText = cleanText.replace(matchChart[0], ''); 
             }
 
-            // 3. 準備雷達圖的 HTML (縮小上下 Margin，讓它更緊湊)
+            // 3. 準備雷達圖的 HTML
             let chartHtml = '';
             let chartId = '';
             if (chartData && chartData.length === 5) {
@@ -361,15 +432,14 @@
                 `;
             }
 
-            // 4. 將 [RADAR_CHART] 原地替換成圖表 (這樣就能控制圖表出現在文字中間)
+            // 4. 將 [RADAR_CHART] 原地替換
             if (cleanText.includes('[RADAR_CHART]')) {
                 cleanText = cleanText.replace(/\[RADAR_CHART\]/g, chartHtml);
             } else if (chartHtml) {
-                // 如果 AI 忘記寫暗號，就當作備案塞在最下面
                 cleanText += chartHtml; 
             }
 
-            // 5. 將 [CARD: ID] 原地替換成「精緻瘦身版」的商品卡片
+            // 5. 替換 [CARD: ID] (拔除 Inline Style，全交給 CSS)
             cleanText = cleanText.replace(/\[CARD:\s*([a-zA-Z0-9_]+)\]/gi, (match, id) => {
                 let cleanId = id.trim();
                 if (cleanId.toUpperCase() === 'NONE') return ''; 
@@ -380,10 +450,11 @@
                     let safeDesc = quickViewDesc.replace(/\n/g, '').replace(/\r/g, '').replace(/'/g, "\\'");
                     let safeImg = product.image ? product.image : '';
 
-                    // ★ 拔除多餘的行內樣式，完全吃你原本 CSS 的左右排版，並微調卡片自己的 margin
                     return `
-                    <div class="ai-product-card" style="margin-top: 5px; margin-bottom: 5px;" onclick="openQuickView('${cleanId}', '${product.name}', ${product.price}, '${safeDesc}', '${safeImg}')">
-                        <div class="ai-product-img-box"><div class="ai-product-img" style="${safeImg ? `background-image: url('${safeImg}');` : ''}"></div></div>
+                    <div class="ai-product-card" onclick="openQuickView('${cleanId}', '${product.name}', ${product.price}, '${safeDesc}', '${safeImg}')">
+                        <div class="ai-product-img-box">
+                            <div class="ai-product-img" style="${safeImg ? `background-image: url('${safeImg}');` : ''}"></div>
+                        </div>
                         <div class="ai-product-content">
                             <div class="ai-product-name">${product.name}</div>
                             <div class="ai-product-bottom-row">
@@ -393,24 +464,25 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    `;
+                    </div>`;
                 }
                 return ''; 
             });
 
-            // 6. 處理 Markdown 排版
+            // 6. 處理 Markdown 排版 (標題、粗體、換行)
             let htmlContent = cleanText
                 .replace(/###\s*([^\n]+)/g, '<div style="font-size: 1.05rem; color: #fff; font-weight: bold; margin: 15px 0 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">$1</div>')
                 .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #fff; letter-spacing: 0.5px;">$1</strong>')
                 .replace(/\n/g, '<br>');
             
-            htmlContent = htmlContent.replace(/(<br>\s*){3,}/g, '<br><br>');
-            
-            // ★ 終極排版修復：消除推薦理由和下一張卡片之間的巨大空白！
-            // 把卡片前面的連續 <br> 刪掉，讓卡片緊貼在文字下方
-            htmlContent = htmlContent.replace(/(<br>\s*)+<div class="ai-product-card"/g, '<div class="ai-product-card"');
+            // ★ 核心除蟲 1：把「✨ 推薦理由」抓出來，包裝進專屬 div
+            // 這樣它就不再是散落的文字，而是可以用 Margin 控制間距的積木
+            htmlContent = htmlContent.replace(/✨\s*(.*?)(?=<br>|$)/g, '<div class="ai-recommend-reason">✨ $1</div>');
+
+            // ★ 核心除蟲 2：暴力屠殺所有 <div> 旁邊的 <br> 標籤
+            // 只要遇到 <div>（卡片、標題、推薦理由），它前後的 <br> 全部被清除
             htmlContent = htmlContent.replace(/(<\/div>)\s*(<br>\s*)+/g, '$1');
+            htmlContent = htmlContent.replace(/(<br>\s*)+(<div)/g, '$2');
 
             // 7. 呼叫渲染圖表的動畫
             if (chartId) {
