@@ -380,16 +380,16 @@
                     let safeDesc = quickViewDesc.replace(/\n/g, '').replace(/\r/g, '').replace(/'/g, "\\'");
                     let safeImg = product.image ? product.image : '';
 
-                    // ★ 卡片瘦身：減少 padding, 縮小圖片, 減少字體大小, 上下距離壓緊
+                    // ★ 拔除多餘的行內樣式，完全吃你原本 CSS 的左右排版，並微調卡片自己的 margin
                     return `
-                    <div class="ai-product-card" style="margin-top: 12px; margin-bottom: 8px; padding: 10px;" onclick="openQuickView('${cleanId}', '${product.name}', ${product.price}, '${safeDesc}', '${safeImg}')">
-                        <div class="ai-product-img-box" style="width: 65px; margin-right: 12px;"><div class="ai-product-img" style="${safeImg ? `background-image: url('${safeImg}');` : ''}"></div></div>
-                        <div class="ai-product-content" style="gap: 4px; justify-content: center;">
-                            <div class="ai-product-name" style="font-size: 0.95rem;">${product.name}</div>
+                    <div class="ai-product-card" style="margin-top: 5px; margin-bottom: 5px;" onclick="openQuickView('${cleanId}', '${product.name}', ${product.price}, '${safeDesc}', '${safeImg}')">
+                        <div class="ai-product-img-box"><div class="ai-product-img" style="${safeImg ? `background-image: url('${safeImg}');` : ''}"></div></div>
+                        <div class="ai-product-content">
+                            <div class="ai-product-name">${product.name}</div>
                             <div class="ai-product-bottom-row">
-                                <div class="ai-product-price" style="font-size: 1rem;">NT$ ${product.price}</div>
-                                <div class="ai-cart-btn-icon" style="width: 28px; height: 28px;">
-                                    <svg viewBox="0 0 24 24" style="width: 14px; height: 14px;"><path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/><circle cx="9" cy="20" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="20" r="1.5" fill="currentColor" stroke="none"/></svg>
+                                <div class="ai-product-price">NT$ ${product.price}</div>
+                                <div class="ai-cart-btn-icon">
+                                    <svg viewBox="0 0 24 24"><path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/><circle cx="9" cy="20" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="20" r="1.5" fill="currentColor" stroke="none"/></svg>
                                 </div>
                             </div>
                         </div>
@@ -398,6 +398,27 @@
                 }
                 return ''; 
             });
+
+            // 6. 處理 Markdown 排版
+            let htmlContent = cleanText
+                .replace(/###\s*([^\n]+)/g, '<div style="font-size: 1.05rem; color: #fff; font-weight: bold; margin: 15px 0 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">$1</div>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #fff; letter-spacing: 0.5px;">$1</strong>')
+                .replace(/\n/g, '<br>');
+            
+            htmlContent = htmlContent.replace(/(<br>\s*){3,}/g, '<br><br>');
+            
+            // ★ 終極排版修復：消除推薦理由和下一張卡片之間的巨大空白！
+            // 把卡片前面的連續 <br> 刪掉，讓卡片緊貼在文字下方
+            htmlContent = htmlContent.replace(/(<br>\s*)+<div class="ai-product-card"/g, '<div class="ai-product-card"');
+            htmlContent = htmlContent.replace(/(<\/div>)\s*(<br>\s*)+/g, '$1');
+
+            // 7. 呼叫渲染圖表的動畫
+            if (chartId) {
+                setTimeout(() => renderRadarChart(chartId, chartData), 100);
+            }
+
+            return htmlContent;
+        }
 
             // 6. 處理 Markdown 排版 (標題、粗體、換行)
             let htmlContent = cleanText
