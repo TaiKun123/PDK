@@ -325,15 +325,13 @@
             let cleanText = text;
             let chartData = null;
 
-            // ★ 終極防護 1 & 2：抹除思考過程與分隔線
+            // 1. 抹除思考過程與隱藏暗號
             cleanText = cleanText.replace(/\[THOUGHT[\s\S]*?\]/gi, '');
             cleanText = cleanText.replace(/\[(接下來問|分析中|系統指令)[\s\S]*?\]/gi, '');
             cleanText = cleanText.replace(/[-=]{3,}/g, '');
-
-            // ★ 隱藏整體的 RECOMMEND 暗號 (避免它印在畫面上，我們現在靠 [CARD] 標籤來畫卡片)
             cleanText = cleanText.replace(/\[RECOMMEND:\s*([^\]]+)\]/g, '');
 
-            // ★ 抓取雷達圖分數暗號 (維持原樣，防呆鎖定 40~100)
+            // 2. 抓取雷達圖分數暗號
             const regexChart = /\[CHART_SCORE:\s*([^\]]+)\]/g;
             let matchChart;
             while ((matchChart = regexChart.exec(cleanText)) !== null) {
@@ -351,10 +349,30 @@
                 cleanText = cleanText.replace(matchChart[0], ''); 
             }
 
-            // ★ 核心魔法：把文章裡的 [CARD: ID] 原地變身成商品卡片！
+            // 3. 準備雷達圖的 HTML (縮小上下 Margin，讓它更緊湊)
+            let chartHtml = '';
+            let chartId = '';
+            if (chartData && chartData.length === 5) {
+                chartId = 'radar_' + Math.random().toString(36).substr(2, 9);
+                chartHtml = `
+                    <div style="width: 100%; max-width: 260px; margin: 5px auto 15px auto; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px;">
+                        <canvas id="${chartId}"></canvas>
+                    </div>
+                `;
+            }
+
+            // 4. 將 [RADAR_CHART] 原地替換成圖表 (這樣就能控制圖表出現在文字中間)
+            if (cleanText.includes('[RADAR_CHART]')) {
+                cleanText = cleanText.replace(/\[RADAR_CHART\]/g, chartHtml);
+            } else if (chartHtml) {
+                // 如果 AI 忘記寫暗號，就當作備案塞在最下面
+                cleanText += chartHtml; 
+            }
+
+            // 5. 將 [CARD: ID] 原地替換成「精緻瘦身版」的商品卡片
             cleanText = cleanText.replace(/\[CARD:\s*([a-zA-Z0-9_]+)\]/gi, (match, id) => {
                 let cleanId = id.trim();
-                if (cleanId.toUpperCase() === 'NONE') return ''; // 遇到 NONE 就隱藏
+                if (cleanId.toUpperCase() === 'NONE') return ''; 
                 const product = DB_PRODUCTS[cleanId];
                 if (product) {
                     let fullDesc = product.description || '';
@@ -362,40 +380,38 @@
                     let safeDesc = quickViewDesc.replace(/\n/g, '').replace(/\r/g, '').replace(/'/g, "\\'");
                     let safeImg = product.image ? product.image : '';
 
-                    // 回傳這張專屬卡片的 HTML，讓它直接穿插在文字中
+                    // ★ 卡片瘦身：減少 padding, 縮小圖片, 減少字體大小, 上下距離壓緊
                     return `
-                    <div class="ai-product-card" style="margin-top: 15px; margin-bottom: 10px;" onclick="openQuickView('${cleanId}', '${product.name}', ${product.price}, '${safeDesc}', '${safeImg}')">
-                        <div class="ai-product-img-box"><div class="ai-product-img" style="${safeImg ? `background-image: url('${safeImg}');` : ''}"></div></div>
-                        <div class="ai-product-content">
-                            <div class="ai-product-name">${product.name}</div>
+                    <div class="ai-product-card" style="margin-top: 12px; margin-bottom: 8px; padding: 10px;" onclick="openQuickView('${cleanId}', '${product.name}', ${product.price}, '${safeDesc}', '${safeImg}')">
+                        <div class="ai-product-img-box" style="width: 65px; margin-right: 12px;"><div class="ai-product-img" style="${safeImg ? `background-image: url('${safeImg}');` : ''}"></div></div>
+                        <div class="ai-product-content" style="gap: 4px; justify-content: center;">
+                            <div class="ai-product-name" style="font-size: 0.95rem;">${product.name}</div>
                             <div class="ai-product-bottom-row">
-                                <div class="ai-product-price">NT$ ${product.price}</div>
-                                <div class="ai-cart-btn-icon">
-                                    <svg viewBox="0 0 24 24"><path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/><circle cx="9" cy="20" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="20" r="1.5" fill="currentColor" stroke="none"/></svg>
+                                <div class="ai-product-price" style="font-size: 1rem;">NT$ ${product.price}</div>
+                                <div class="ai-cart-btn-icon" style="width: 28px; height: 28px;">
+                                    <svg viewBox="0 0 24 24" style="width: 14px; height: 14px;"><path d="M6 6h15l-1.68 9H6.96L4.2 3H1v3h2l3.6 15h12v-3H7.8L6 6z"/><circle cx="9" cy="20" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="20" r="1.5" fill="currentColor" stroke="none"/></svg>
                                 </div>
                             </div>
                         </div>
                     </div>
                     `;
                 }
-                return ''; // 如果查無此商品 ID，就回傳空白
+                return ''; 
             });
 
-            // 處理 Markdown 排版 (粗體、換行、標題)
+            // 6. 處理 Markdown 排版 (標題、粗體、換行)
             let htmlContent = cleanText
-                .replace(/###\s*([^\n]+)/g, '<div style="font-size: 1.1rem; color: #fff; font-weight: bold; margin: 15px 0 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">$1</div>')
+                .replace(/###\s*([^\n]+)/g, '<div style="font-size: 1.05rem; color: #fff; font-weight: bold; margin: 15px 0 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">$1</div>')
                 .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #fff; letter-spacing: 0.5px;">$1</strong>')
                 .replace(/\n/g, '<br>');
+            
             htmlContent = htmlContent.replace(/(<br>\s*){3,}/g, '<br><br>');
+            
+            // ★ 終極排版修復：強制刪除緊接在 ### 標題下方的多餘 <br> 空行，解決詭異留白！
+            htmlContent = htmlContent.replace(/(<\/div>)\s*(<br>\s*)+/g, '$1');
 
-            // 如果有雷達圖資料，把雷達圖加在整段對話的最下方 (通常是階段一時觸發)
-            if (chartData && chartData.length === 5) {
-                let chartId = 'radar_' + Math.random().toString(36).substr(2, 9);
-                htmlContent += `
-                    <div style="width: 100%; max-width: 280px; margin: 20px auto; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px;">
-                        <canvas id="${chartId}"></canvas>
-                    </div>
-                `;
+            // 7. 呼叫渲染圖表的動畫
+            if (chartId) {
                 setTimeout(() => renderRadarChart(chartId, chartData), 100);
             }
 
