@@ -270,24 +270,53 @@ input, textarea {
     pointer-events: none;
 }
 
-/* 按鈕群組容器 */
-.button-group {
-    display: flex; gap: 30px; flex-wrap: wrap; justify-content: center;
-    opacity: 0; animation: fadeInUp 1.2s ease forwards 1.2s;
-    pointer-events: auto; /* 恢復按鈕可點擊狀態 */
+/* ★ 命定 QUIZ 按鈕 (主視覺焦點) */
+.btn-quiz-primary {
+    display: inline-block;
+    background-color: #ffffff; /* 實心純白，不刺眼但絕對顯眼 */
+    color: #000000;
+    font-weight: bold;
+    font-size: 1rem;
+    letter-spacing: 2px;
+    padding: 16px 45px;
+    border-radius: 50px; /* ★ 圓潤的膠囊形狀 */
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2); /* 微微的發光感，增加層次 */
+    transition: all 0.3s ease;
+    text-decoration: none;
+    font-family: 'Playfair Display', serif;
 }
 
-/* 極簡風格按鈕 */
-.btn-minimal {
-    display: inline-block; padding: 15px 40px;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    color: #fff; text-transform: uppercase; font-size: 0.9rem;
-    letter-spacing: 3px; transition: all 0.5s ease;
-    background: transparent; cursor: pointer; position: relative; overflow: hidden;
+.btn-quiz-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4);
+    background-color: #f0f0f0;
 }
-.btn-minimal:hover {
-    border-color: #fff; background-color: #fff; color: #000;
-    box-shadow: 0 0 25px rgba(255, 255, 255, 0.3); transform: translateY(-3px);
+
+/* 按鈕群組容器 */
+.button-group {
+    display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;
+    opacity: 0; animation: fadeInUp 1.2s ease forwards 1.2s;
+    pointer-events: auto;
+}
+
+/* ★ 四個分類按鈕 (圓潤、微底色不空洞) */
+.btn-category {
+    display: inline-block; 
+    padding: 12px 35px;
+    background-color: rgba(255, 255, 255, 0.1); /* ★ 填入微透明白底，解決「太空」的問題 */
+    backdrop-filter: blur(5px); /* 輕微毛玻璃感 */
+    border: 1px solid rgba(255, 255, 255, 0.3); /* 保留精緻的細邊框 */
+    color: #ffffff; 
+    font-size: 0.9rem;
+    letter-spacing: 3px; 
+    border-radius: 30px; /* ★ 圓潤造型 */
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.btn-category:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+    border-color: #ffffff;
 }
 
 
@@ -698,12 +727,38 @@ input, textarea {
     .hero-title { font-size: 2.5rem; letter-spacing: 3px; }
     .page-title { font-size: 2.5rem; letter-spacing: 3px; }
     
-    /* 按鈕群組垂直排列 */
-    .button-group {
-        padding-bottom: 40px; flex-direction: column; gap: 15px;
-        width: 100%; max-width: 220px; margin: 0 auto;
+    /* =========================================
+       手機版：首頁主視覺間距「強制」微調
+       ========================================= */
+    /* 1. 讓副標題離命定 QUIZ 非常近 */
+    .hero-subtitle {
+        margin-bottom: 50px !important; 
     }
-    .btn-minimal { width: 100%; padding: 12px 0; font-size: 0.85rem; }
+
+    /* 2. 命定 QUIZ 按鈕：強制拉開下方的一大片留白 */
+    .quiz-btn-wrapper {
+        width: 100%; 
+        max-width: 260px; 
+        /* 上方 0，左右置中，下方 80px (!important 確保絕對生效) */
+        margin: 0 auto 40px auto !important; 
+    }
+    
+    .btn-quiz-primary { 
+        width: 100%; padding: 15px 0; font-size: 0.95rem; display: block; text-align: center;
+    }
+    
+    /* 3. 下方四個分類按鈕：較窄，且彼此間距絕對相等 */
+    .button-group {
+        padding-bottom: 40px; 
+        flex-direction: column; 
+        gap: 20px !important; /* 這四個按鈕之間的距離保持 15px 的等距 */
+        width: 100%; 
+        max-width: 200px; /* 維持比較窄的寬度，不空洞 */
+        margin: 0 auto;
+    }
+    .btn-category { 
+        width: 100%; padding: 12px 0; font-size: 0.85rem; display: block; text-align: center;
+    }
 
     /* 商品網格改為 2 欄 */
     .product-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; }
