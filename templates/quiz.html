@@ -5,17 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>智能選品推薦 QUIZ | P.D.K</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         /* --- 測驗專屬 UI (針對手機版優化) --- */
         .quiz-container {
-            max-width: 600px; margin: 80px auto 50px; padding: 20px;
+            max-width: 600px; 
+            margin: 50px auto 50px; /* ★ 將原本前面的 80px 改為 50px，讓整個區塊再往上提一點 */
+            padding: 20px;
             color: #fff; position: relative; z-index: 10;
         }
         
         /* --- 前置引言頁面 (首頁風格流動感) --- */
         .intro-section {
-            padding: 20px;
+            padding: 0px 20px 20px 20px;
             text-align: center;
             display: flex;
             flex-direction: column;
@@ -25,13 +28,12 @@
         }
         
         .intro-title {
-            font-size: 2.0rem; 
-            letter-spacing: 5px;
-            margin-bottom: 25px;
-            color: #fff;
             font-family: 'Playfair Display', serif;
-            opacity: 0;
-            animation: fadeInUp 1.2s ease forwards 0.2s; 
+            font-size: 2.5rem;
+            color: #fff;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
         }
         
         .intro-subtitle {
@@ -40,37 +42,6 @@
             line-height: 2.2;
             letter-spacing: 2px;
             margin-bottom: 20px;
-        }
-
-        /* 讓每一行文字有獨立的浮現動畫與樣式 */
-        .intro-line {
-            display: block;
-            opacity: 0;
-            margin-bottom: 8px;
-        }
-        .intro-line-1 { animation: fadeInUp 1.5s ease forwards 0.8s; }
-        
-        /* 黃金原則分三行，字體更大更顯眼 */
-        .intro-line-2 { 
-            animation: fadeInUp 1.5s ease forwards 1.6s; 
-            color: #fff; font-weight: bold; font-size: 1.2rem; margin-top: 25px; margin-bottom: 5px;
-        } 
-        .intro-line-3 { 
-            animation: fadeInUp 1.5s ease forwards 2.4s; 
-            color: #fff; font-weight: bold; font-size: 1.3rem; letter-spacing: 4px; margin-bottom: 5px;
-        }
-        .intro-line-4 { 
-            animation: fadeInUp 1.5s ease forwards 3.2s; 
-            color: #fff; font-weight: bold; font-size: 1.3rem; letter-spacing: 4px; margin-bottom: 25px;
-        }
-        
-        .intro-line-5 { animation: fadeInUp 1.5s ease forwards 4.0s; }
-        .intro-line-6 { animation: fadeInUp 1.5s ease forwards 4.8s; }
-
-        .intro-action {
-            opacity: 0;
-            animation: fadeInUp 1.5s ease forwards 5.2s; 
-            pointer-events: auto; 
         }
 
         /* 沿用首頁 btn-minimal 按鈕風格 */
@@ -231,6 +202,117 @@
         }
         .quiz-action-btn:hover { background: #fff; border-color: #fff; }
         .quiz-action-btn:hover .quiz-action-icon { stroke: #000; }
+        
+        /* --- 側邊延伸長方形 UI (貼齊邊緣設計) --- */
+        .choice-container {
+            display: flex;
+            flex-direction: column;
+            gap: 80px; 
+            margin-top: 40px;
+            
+            /* ★ 關鍵 1：打破外層 intro-section 的「置中對齊」限制，讓它可以往兩側延展 */
+            align-self: stretch;
+
+            /* ★ 關鍵 2：完美抵銷兩層總共 40px 的 padding */
+            width: calc(100% + 80px); /* 左右各推 40px，所以加 80px */
+            margin-left: -40px;
+            
+            overflow-x: hidden; 
+        }
+
+        /* --- 側邊延伸長方形 UI (貼齊邊緣設計) --- */
+        .edge-panel {
+            position: relative;
+            width: 96%; /* 長方形佔螢幕寬度的比例 */
+            padding: 50px 30px;
+            cursor: pointer;
+            
+            /* 背景與毛玻璃設定 */
+            background-color: rgba(60, 60, 60, 0.65); 
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            
+            opacity: 0; 
+            transition: filter 0.3s ease;
+
+            /* ★ 關鍵修正 1：強制切除超出圓角框線的背景內容，解決正方形角伸出去的問題 */
+            overflow: hidden; 
+        }
+
+        .edge-panel:hover, .edge-panel:active {
+            filter: brightness(1.2);
+        }
+
+        /* 遮罩，確保文字清楚 */
+        .panel-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5); 
+            z-index: 1;
+        }
+
+        /* --- 卡片內容區塊 --- */
+        .panel-content {
+            position: relative;
+            z-index: 2;
+            text-align: center; /* ★ 文字改為置中對齊 */
+        }
+
+        /* --- 卡片標題 --- */
+        .panel-title {
+            font-size: 1.5rem; /* ★ 標題放大 (原本是 1.3rem) */
+            font-weight: bold;
+            color: #ffffff; /* ★ 標題使用純白色，最顯眼 */
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+            font-family: 'Playfair Display', serif; /* ★ 套用你指定的字體 */
+        }
+
+        /* --- 卡片描述說明 --- */
+        .panel-desc {
+            font-size: 0.8rem; /* ★ 描述縮小 (原本是 0.9rem) */
+            color: #b3b3b3; /* ★ 描述改用稍暗的淺灰色，跟標題做出明顯對比 */
+            line-height: 1.6;
+            letter-spacing: 1px;
+            font-family: 'Playfair Display', serif; /* ★ 描述也一起套用指定字體 */
+        }
+
+        /* --- 上方 AI：貼齊左邊、右側圓角 --- */
+        .panel-left {
+            align-self: flex-start; /* 靠左對齊 */
+            border-radius: 0 15px 15px 0; /* 只有右邊有圓角 */
+            
+            /* ★ 關鍵修正 2：改成灰色邊框 (例如 #888888) */
+            border: 1px solid #2a2a2a; 
+            border-left: none; /* 左邊緣不要框線 */
+            
+            animation: slideInFromLeftEdge 1.2s ease forwards 0.2s;
+        }
+
+        /* --- 下方 問卷：貼齊右邊、左側圓角 --- */
+        .panel-right {
+            align-self: flex-end; /* 靠右對齊 */
+            border-radius: 15px 0 0 15px; /* 只有左邊有圓角 */
+            
+            border: 1px solid #838383; 
+            border-right: none; /* 右邊緣不要框線 */
+            
+            animation: slideInFromRightEdge 1.2s ease forwards 0.4s;
+        }
+
+        /* 動畫定義：從螢幕外滑進來 */
+        @keyframes slideInFromLeftEdge {
+            from { opacity: 0; transform: translateX(-100%); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideInFromRightEdge {
+            from { opacity: 0; transform: translateX(100%); }
+            to { opacity: 1; transform: translateX(0); }
+        }
     </style>
 </head>
 <body>
@@ -254,21 +336,29 @@
     <div class="quiz-container">
         
         <div id="introArea" class="intro-section">
-            <h1 class="intro-title">P.D.K  命定之旅</h1>
+            <h1 class="intro-title">- PDK TRIP -</h1>
             
-            <div class="intro-subtitle">
-                <span class="intro-line intro-line-1">在開始您的專屬旅程之前</span>
+            <div class="choice-container">
                 
-                <span class="intro-line intro-line-2">請記得：</span>
-                <span class="intro-line intro-line-3">洗髮精照顧頭皮</span>
-                <span class="intro-line intro-line-4">保養品修護髮絲</span>
-                
-                <span class="intro-line intro-line-5">透過 6 個簡單的日常提問</span>
-                <span class="intro-line intro-line-6">我們將配對最適合您的養護產品</span>
-            </div>
-            
-            <div class="intro-action">
-                <button class="btn-minimal" onclick="startQuiz()">ENTRY</button>
+                <div class="edge-panel panel-left" 
+                     onclick="window.location.href='/ai_consult'" 
+                     style="background-image: url('{{ url_for('static', filename='other_photos/850產品集.JPG') }}');">
+                    <div class="panel-overlay"></div>
+                    <div class="panel-content">
+                        <div class="panel-title">AI 諮詢室</div>
+                        <div class="panel-desc">透過專業對話快速分析您的髮況</div>
+                    </div>
+                </div>
+
+                <div class="edge-panel panel-right" 
+                     onclick="startQuiz()" 
+                     style="background-image: url('{{ url_for('static', filename='other_photos/堅果&摩洛哥.JPG') }}');">
+                    <div class="panel-overlay"></div>
+                    <div class="panel-content">
+                        <div class="panel-title">問卷檢測</div>
+                        <div class="panel-desc">6 個簡單提問，輕鬆找出您的命定配方</div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -365,8 +455,43 @@
             <div id="haircareResults"></div>
 
             <button class="btn-nav btn-nav-full" style="margin-top: 30px; background: transparent; color: #fff; border: 1px solid #666;" onclick="location.reload()">重新測驗</button>
-        </div>
+        </div> </div> <div id="quizFooterArea">
+        <footer class="site-footer">
+            <div class="footer-brand">PDK OFFICE</div>
 
+            <div class="footer-links">
+                <a href="/about">關於我們</a>
+                <a href="{{ url_for('return_policy') }}">退換貨政策</a>
+                <a href="{{ url_for('privacy') }}">隱私條款</a>
+            </div>
+
+            <div class="footer-social">
+                <a href="https://www.facebook.com/share/17xiC5DsRL/?mibextid=wwXIfr" target="_blank" title="Facebook"><i class="fab fa-facebook-f"></i></a>
+                <a href="https://www.instagram.com/kun_pdk?igsh=MWpqZDh0eXowNnl2Yw%3D%3D&utm_source=qr" target="_blank" title="Instagram"><i class="fab fa-instagram"></i></a>
+                <a href="https://lin.ee/lDgmkDVf" target="_blank" title="LINE"><i class="fab fa-line"></i></a>
+            </div>
+
+            <div class="footer-contact">
+                <p>客服電話: 0960901252</p>
+                <p>客服信箱: pdk.service.office@gmail.com</p>
+                <p>客服時間: am10:00-pm22:00</p>
+            </div>
+
+            <div class="footer-cert">
+                <div class="cert-item">
+                    <i class="fas fa-shield-halved"></i>
+                    <span>責任險認證</span>
+                </div>
+                <div class="cert-item">
+                    <i class="fas fa-certificate"></i>
+                    <span>ISO 9001</span>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px; font-size: 0.8rem; color: #555;">
+                &copy; 2026 PDK. All Rights Reserved.
+            </div>
+        </footer>
     </div>
 
 <script>
@@ -400,12 +525,15 @@
 
     function startQuiz() {
         document.getElementById('introArea').style.display = 'none';
+        
+        // ★★★ 修改 2：加上這行，開始測驗時隱藏 Footer ★★★
+        document.getElementById('quizFooterArea').style.display = 'none'; 
+        
         let quizArea = document.getElementById('quizArea');
         quizArea.style.display = 'block';
         setTimeout(() => { quizArea.style.opacity = 1; }, 50);
         updateProgress();
     }
-
     function updateProgress() {
         document.getElementById('currentStepText').innerText = currentStep;
         document.getElementById('progressBar').style.width = ((currentStep / totalSteps) * 100) + '%';
